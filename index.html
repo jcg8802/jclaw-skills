@@ -129,7 +129,7 @@
 <div class="container">
 
   <div class="stats-row">
-    <div class="stat-card"><div class="num">12</div><div class="lbl">Active Skills</div></div>
+    <div class="stat-card"><div class="num">15</div><div class="lbl">Active Skills</div></div>
     <div class="stat-card"><div class="num">5</div><div class="lbl">Categories</div></div>
     <div class="stat-card"><div class="num">24/7</div><div class="lbl">Autonomous Ops</div></div>
     <div class="stat-card"><div class="num">∞</div><div class="lbl">Compounding</div></div>
@@ -162,22 +162,2135 @@
 </footer>
 
 <script>
-const SKILL_CONTENT = {"buddy": "# SKILL: BUDDY — Multi-Agent LLM Financial Analysis\n\n> *\"From fundamental analysts, sentiment experts, and technical analysts — to trader, risk management, and portfolio manager.\"*\n\n**Source:** [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) — ingested and rebuilt for JClaw  \n**Paper:** arXiv:2412.20138  \n**Version:** v0.2.2 (GPT-5.4/Gemini 3.1/Claude 4.6 compatible)  \n**Installed at:** `~/.openclaw/workspace/apps/TradingAgents/`  \n**Python env:** `~/.openclaw/workspace/apps/TradingAgents/.venv313/`\n\n---\n\n## Trigger\n\nUse this skill when JC says:\n- \"run Buddy on [TICKER]\"\n- \"analyze [TICKER] with Buddy\"\n- \"Buddy report\"\n- \"deep analysis on [TICKER]\"\n- \"full agent analysis on [TICKER]\"\n- \"what does Buddy think about [TICKER]\"\n- \"Buddy, what do you think?\"\n\n---\n\n## Overview\n\nTradingAgents is a **real Python framework** (not simulated) that mirrors a trading firm:\n\n1. **Analyst Team** (parallel) — 4 specialized analysts run simultaneously:\n   - Fundamentals Analyst — financials, balance sheet, income statement\n   - Technical/Market Analyst — MACD, RSI, price patterns\n   - News Analyst — macro events, global news impact\n   - Sentiment Analyst — social media, public mood\n\n2. **Researcher Team** (debate) — Bullish vs Bearish researchers debate the analyst reports\n\n3. **Trader** — Synthesizes debate into a trade recommendation\n\n4. **Risk Management Team** — Evaluates volatility, liquidity, portfolio risk; debates and adjusts\n\n5. **Portfolio Manager** — Final decision: approve/reject the transaction\n\nAll agents use real LLM calls via LangGraph. Real data from yfinance (no API key needed).\n\n---\n\n## How to Run\n\n### Quick Run (single ticker)\n\nSpawn a subagent with:\n```\ntask: \"Run TradingAgents analysis on [TICKER]. \nUse Python env at ~/.openclaw/workspace/apps/TradingAgents/.venv313/\nRun: cd ~/.openclaw/workspace/apps/TradingAgents && source .venv313/bin/activate && ANTHROPIC_API_KEY=$(cat ~/.config/anthropic_key 2>/dev/null || echo $ANTHROPIC_API_KEY) python ~/.openclaw/workspace/skills/trading-agents/scripts/run_analysis.py --tickers [TICKER] --date today --provider anthropic\nCapture output and post formatted brief to Discord channel 1486200925277393027\"\n```\n\n### Multi-ticker Run\n\n```bash\ncd ~/.openclaw/workspace/apps/TradingAgents\nsource .venv313/bin/activate\npython ~/.openclaw/workspace/skills/trading-agents/scripts/run_analysis.py \\\n  --tickers NVDA AAPL MSFT \\\n  --date today \\\n  --provider anthropic\n```\n\n### Direct Python (from orchestrator)\n\n```python\nimport subprocess, sys\n\nresult = subprocess.run(\n    [\n        \"/Users/glancy/.openclaw/workspace/apps/TradingAgents/.venv313/bin/python\",\n        \"/Users/glancy/.openclaw/workspace/skills/trading-agents/scripts/run_analysis.py\",\n        \"--tickers\", \"NVDA\", \"AAPL\",\n        \"--date\", \"today\",\n        \"--provider\", \"anthropic\"\n    ],\n    capture_output=True, text=True, timeout=600\n)\nprint(result.stdout)\n```\n\n---\n\n## Configuration\n\n**LLM Providers (pick one):**\n- `anthropic` (default for JClaw) — uses claude-sonnet-4-5 / claude-haiku-4-5\n- `openai` — uses gpt-4o / gpt-4o-mini\n- `google` — uses gemini models\n\n**Data source:** yfinance (free, no API key)  \n**Optional:** Set `ALPHA_VANTAGE_API_KEY` for richer data (news, fundamentals)\n\n**Debate rounds:** Default 1. Increase `max_debate_rounds` for deeper analysis (slower + more cost).\n\n---\n\n## Integration with Gekko\n\nBuddy and Gekko are **complementary, not competing**:\n\n| | Gekko | Buddy |\n|---|---|---|\n| **Purpose** | Macro regime + portfolio positioning | Deep single-ticker analysis |\n| **Speed** | Fast (web search based) | Slower (real financial data) |\n| **Best for** | Daily market brief, sector rotation | Due diligence on specific names |\n| **Output** | Portfolio allocation brief | BUY/SELL/HOLD with full reasoning |\n\n**Recommended workflow:**\n1. Gekko runs at 6 AM → identifies top conviction ideas\n2. TradingAgents runs deep analysis on Gekko's top 2-3 picks → confirms or challenges\n3. Final decision = Gekko macro context + TradingAgents bottom-up analysis\n\n---\n\n## Output Format\n\nDiscord post to channel **1486200925277393027**:\n\n```\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🤵 **BUDDY BRIEF** · [DATE]\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n**NVDA** 🟢 BUY · confidence 78%\n> Strong AI capex cycle, beat earnings by 12%, RSI not yet overbought.\n  Bull thesis wins debate: supply constraints easing, datacenter demand intact.\n\n**AAPL** 🟡 HOLD\n> Services revenue solid but hardware cycle slowing. Risk mgmt flagged margin\n  compression risk. Portfolio manager: hold existing, no new entry here.\n\n*Powered by TradingAgents v0.2.2 · Anthropic · yfinance data*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n```\n\n---\n\n## Data Files\n\n```\nskills/trading-agents/\n├── SKILL.md                     ← this file\n├── scripts/\n│   └── run_analysis.py          ← main runner\n└── data/\n    └── results-YYYY-MM-DD.json  ← saved outputs per run\n```\n\n---\n\n## Important Notes\n\n- **Run time:** 3–10 min per ticker (real LLM calls, real financial data fetches)\n- **Cost per ticker:** ~$0.20–$1.50 with Claude Sonnet depending on debate rounds\n- **Date parameter:** TradingAgents uses historical data. For \"live\" analysis use today's date.\n- **Not financial advice** — for research/entertainment only\n- **Spawn as subagent** — never run inline, too slow for main session\n\n---\n\n## Spawning Instructions\n\n```\nsessions_spawn(\n  task=\"Run TradingAgents deep analysis on [TICKERS] for today. Read skill at ~/.openclaw/workspace/skills/trading-agents/SKILL.md. Run the analysis script, capture the formatted Discord brief, and post it to channel 1486200925277393027.\",\n  mode=\"run\",\n  runTimeoutSeconds=600\n)\n```\n", "dream": "---\nname: dream\ndescription: \"Nightly cognitive maintenance for JClaw — memory consolidation, pattern detection, session handoff, and proactive preparation. Runs at 4:30 AM via cron while JC sleeps.\"\nmetadata:\n  openclaw:\n    emoji: \"🌙\"\n    schedule: \"30 4 * * *\"\n    session_target: isolated\ntriggers:\n  - \"dream routine\"\n  - \"run dream\"\n  - \"nightly synthesis\"\n  - \"memory consolidation\"\n---\n\n# Dream Routine — JClaw Nightly Cognitive Maintenance\n\nInspired by human REM sleep: memory consolidation, pattern recognition, and proactive preparation — run while JC sleeps so I wake up smarter.\n\n## When to Run\n- Automatically: cron at 4:30 AM ET daily (after overnight ops and health checks are done)\n- Manually: JC says \"run dream\" or \"run the dream routine\"\n\n## Phase 1 — Memory Consolidation (10 min)\n\n### Step 1: Read today's context\n```\nexec: date +%Y-%m-%d  → get TODAY and YESTERDAY dates\nread: memory/TODAY.md  (today's daily log if it exists)\nread: memory/YESTERDAY.md  (yesterday's daily log)\nread: MEMORY.md  (first 80 lines — current long-term memory index)\n```\n\n### Step 2: Classify what happened today\nScan the daily logs for items worth promoting to long-term memory:\n\n**Promote to MEMORY.md if:**\n- A significant decision was made (e.g., \"decided to use Vercel for deploys\")\n- JC expressed a preference or correction (\"don't do X\", \"always do Y\")\n- A new contact or relationship emerged\n- A project milestone was reached\n- A workflow or skill was created/improved\n- Something JClaw got wrong that shouldn't repeat\n- A business update (deal progress, investor contact, fundraise status)\n\n**Drop (do NOT promote):**\n- Routine operations (\"checked inbox — empty\")\n- One-off tasks with no lasting relevance\n- Duplicate info already in MEMORY.md\n- Conversation small talk\n\n### Step 3: Write to MEMORY.md\nIf there are items worth promoting:\n- Append a dated entry under the appropriate section in MEMORY.md\n- Keep it concise: 1–4 bullet points max\n- Format: `## [DATE] — [Session Summary in 5 words]`\n\n### Step 4: Write today's dream log\nAlways write a brief dream log regardless of whether anything was promoted:\n```\nwrite: memory/dream-TODAY.md\n```\n\nFormat:\n```markdown\n# Dream Log — YYYY-MM-DD\n\n## Promoted to Long-Term Memory\n[list items promoted, or \"Nothing significant to promote\"]\n\n## Patterns Detected\n[any recurring themes, issues, or behaviors noticed]\n\n## Session Handoff Note\n[brief context for next session — what was in progress, what JC was working on, any open loops]\n\n## Tomorrow's Suggested Focus\n[1-3 actionable items JClaw should proactively work on next session]\n```\n\n---\n\n## Phase 2 — Pattern Detection (5 min)\n\nScan recent memory files (last 7 days) for:\n\n**Communication patterns:**\n- Anyone JC was expecting to hear from but hasn't\n- Threads that went cold (escalated but no resolution noted)\n- Emails drafted but status unknown\n\n**Task velocity:**\n- What's been pending for 3+ days\n- Blockers that might now be resolved\n\n**Cron health patterns:**\n- Any job that's been timing out repeatedly\n- Jobs that consistently produce no output (maybe broken silently)\n\n**JClaw improvement opportunities:**\n- Any correction JC made this week that isn't yet in memory files\n- Any workflow that was done manually that could be automated\n\nLog findings in `memory/dream-TODAY.md` under \"Patterns Detected\".\n\n---\n\n## Phase 3 — Session Handoff (5 min)\n\nWrite `SESSION_HANDOFF.md` in the workspace root:\n\n```markdown\n# Session Handoff — YYYY-MM-DD\n\n## What Happened Today\n[3–5 bullet summary of the day's significant events]\n\n## In Progress / Open Loops\n[anything started but not finished — include file paths if relevant]\n\n## What JC Mentioned Wanting\n[anything JC said he wanted to do, try, or build — even casually]\n\n## Pending JC Actions\n[things waiting on JC: approvals, decisions, info needed]\n\n## JClaw Priorities for Next Session\n[top 2–3 things I should proactively work on or mention when JC is back]\n\n## Mood / Context\n[brief note on JC's apparent state — working late, excited about a project, etc.]\n```\n\nThis file is read at the start of every main session so I wake up knowing exactly where we left off.\n\n---\n\n## Phase 4 — Proactive Prep (5 min)\n\nCheck upcoming items:\n```\nexec: gog calendar events list --account jc@candosa.com --from tomorrow --to +3days --json\n```\n\nFor each meeting in the next 3 days:\n- Note the meeting name and time\n- Flag if no prep has been done yet (no brief in memory, no notes)\n- Queue pre-meeting briefs to be auto-generated\n\nCheck pending drafts:\n```\nread: data/pending-drafts.json\n```\nFlag any draft that has been sitting >48h with no action.\n\nLog findings in SESSION_HANDOFF.md under \"JClaw Priorities for Next Session\".\n\n---\n\n## Output\n\n**Always write:**\n- `memory/dream-YYYY-MM-DD.md` — full dream log\n- `SESSION_HANDOFF.md` — handoff for next session\n\n**Post to Discord only if:**\n- Something urgent was found (blocked items, upcoming meetings with no prep, draft sitting >72h)\n- Post to `#⚙️-ops-log` (channel 1484269303057350811)\n- Format: `🌙 **Dream Report — [Date]** — [1 sentence on most important finding]`\n\n**Silent if:**\n- Everything is normal, nothing urgent\n- Do NOT post \"nothing to report\" messages — silence is fine\n\n---\n\n## Updating SESSION_HANDOFF.md (Ad Hoc)\n\nIn addition to the nightly dream run, update `SESSION_HANDOFF.md` immediately when:\n- JC says \"talk later\", \"goodnight\", \"done for now\", \"brb\"\n- A major task completes mid-conversation\n- JC makes a significant preference correction\n\nThis keeps the handoff current even if the dream cron hasn't run yet.\n\n---\n\n## QMD — Weekly Memory Compaction (Sunday 2 AM)\n\nOnce per week (Sunday), instead of the normal dream routine, run full QMD (Quality Memory Digest):\n\n1. Read all 7 daily logs from the past week\n2. Compress into a single weekly digest: `memory/qmd/YYYY-WXX.md`\n3. Keep only: decisions, commitments, new contacts, pattern changes, blockers/resolutions\n4. Drop: routine ops, ephemeral context, duplicates\n5. Update MEMORY.md index to reference the QMD file\n6. Archive the 7 daily logs to `memory/archive/`\n\n**QMD file format:**\n```markdown\n# QMD — Week of YYYY-MM-DD to YYYY-MM-DD\n\n## Decisions Made\n## Commitments & Deadlines\n## New Contacts & Relationships\n## Pattern Changes\n## Blockers & Resolutions\n## Skills Created / Updated\n## Projects Started / Completed\n```\n", "ea-inbox": "---\nname: ea-inbox\ndescription: Executive assistant inbox triage, email drafting, and meeting scheduling for JC via Gmail (gog CLI). Use when checking JC's inbox, processing emails, drafting replies, scheduling meetings, handling scheduling threads, or responding to approval commands (q/a/z reactions) in Discord #inbox channel. Also triggers on heartbeat inbox checks and cron-based inbox monitoring.\n---\n\n# EA Inbox — Email Triage & Scheduling\n\nEnd-to-end inbox management: classify emails, draft replies, schedule meetings to completion, and surface only what JC needs to act on.\n\n## ⛔ Absolute Rules\n\n1. **Inbox clear → SILENCE.** No post, no message, no confirmation. Stop.\n2. **Only act on emails sent directly FROM JC** (jc@candosa.com, jcg8802@gmail.com, jc@stoabehavioral.com). If someone else CC's jclaw@candosa.com — **IGNORE.**\n3. **Never send any reply without JC CC'd** on jc@candosa.com.\n4. **Always reply in the existing Gmail thread** — never compose a new email.\n5. **Only post to Discord when JC must act** — drafts to approve, escalations, or decisions. Never post auto-handled confirmations, status logs, or \"inbox clear.\"\n\n## Step 1 — Fetch Inbox\n\nCheck **both** accounts every cycle:\n\n```bash\ngog gmail messages search 'in:inbox newer_than:1h' --account jclaw@candosa.com --max 15 --json\ngog gmail messages search 'in:inbox newer_than:1h' --account jc@candosa.com --max 20 --json\n```\n\nUse `newer_than:1h` (not `is:unread`) to catch emails marked as read by other clients.\n\nLoad `data/ea-inbox/processed-emails.json`. Skip any message ID already in the list. After processing each email, append its ID with a timestamp.\n\n**jclaw@candosa.com** — JClaw's own inbox: apply the \"FROM JC only\" rule (directives from JC trigger actions)\n**jc@candosa.com** — JC's main inbox: triage ALL inbound emails using the classification table below (ESCALATE / DRAFT / AUTO)\n\n## Step 2 — Classify Each Email\n\nCheck the `from` field first:\n\n| From | Action |\n|------|--------|\n| JC's addresses (jc@candosa.com, jcg8802@gmail.com, jc@stoabehavioral.com) | **Directive** — follow the instruction |\n| Anyone else CC'ing jclaw | **IGNORE** — skip entirely |\n\n**For jc@candosa.com** — triage all inbound emails regardless of sender:\n\n| Category | Criteria | Action |\n|----------|----------|--------|\n| 🗓️ SCHEDULE | Scheduling requests, time proposals, availability replies | → Scheduling flow (Step 3) |\n| 🔴 ESCALATE | VIPs, money, contracts, legal, first-time contacts, fundraising | Flag only — no draft |\n| 🟡 DRAFT | Substantive replies needed — JC hasn't responded | Draft in JC's voice + post for approval |\n| 🟢 AUTO | Acks, confirmations, logistics, newsletters, receipts | Mark read / archive silently |\n| ➡️ IGNORE | Threads JC is already handling / already replied | Skip |\n\n**For jclaw@candosa.com** — apply \"FROM JC only\" rule:\n\nFor directives from JC, classify:\n\n| Category | Criteria | Action |\n|----------|----------|--------|\n| 🗓️ SCHEDULE | \"find us a time\", \"schedule\", \"book a meeting\", scheduling coordination | → Scheduling flow (Step 3) |\n| 🔴 ESCALATE | VIPs, money, contracts, legal, first-time contacts | Flag only — no draft |\n| 🟡 DRAFT | Substantive replies needed | Draft + post for approval |\n| 🟢 AUTO | Acks, logistics, confirmations, follow-ups | Handle silently |\n\nFor **scheduling thread replies** (someone responding to a time proposal): check `data/ea-inbox/scheduling-threads.json` — if the thread ID matches an active scheduling conversation, route to Step 3.\n\n## Step 3 — Scheduling State Machine\n\nSee `references/scheduling-rules.md` for JC's preferences (hours, buffers, notice, invite format).\n\n### States\n\nTrack in `data/ea-inbox/scheduling-threads.json`:\n\n```json\n{\n  \"thread_id\": \"gmail_thread_id\",\n  \"status\": \"proposing|awaiting_response|confirmed|booked\",\n  \"counterparty\": \"name <email>\",\n  \"subject\": \"email subject\",\n  \"proposed_times\": [\"2026-03-25T14:00:00-04:00\"],\n  \"confirmed_time\": null,\n  \"calendar_event_id\": null,\n  \"created\": \"ISO timestamp\",\n  \"updated\": \"ISO timestamp\",\n  \"discord_msg_id\": \"for draft tracking\"\n}\n```\n\n### Flow\n\n**A. New scheduling request (from JC):**\n1. Parse who to meet and any constraints from JC's email\n2. Check JC's calendar for available slots:\n   ```bash\n   gog calendar events list --account jc@candosa.com --from <start> --to <end> --json\n   ```\n3. Find 3 slots matching scheduling rules (see references/scheduling-rules.md)\n4. Draft an email proposing times → post to Discord for approval\n5. Set status: `proposing`\n\n**B. Counterparty replies with availability:**\n1. Parse their response — which times work, or new suggestions\n2. If a time is confirmed:\n   - Create calendar event:\n     ```bash\n     gog calendar events create --account jc@candosa.com \\\n       --title \"[Meeting Title]\" \\\n       --start \"YYYY-MM-DDTHH:MM:SS\" \\\n       --end \"YYYY-MM-DDTHH:MM:SS\" \\\n       --attendees \"email1,email2,jc@candosa.com\" \\\n       --description \"[Context]\" \\\n       --meet --json\n     ```\n   - Send confirmation email in-thread (with JC CC'd)\n   - Set status: `booked`\n   - Post brief confirmation to Discord\n3. If no match — propose new times, update thread, set status: `awaiting_response`\n\n**C. Rescheduling:**\n1. Delete/update the existing calendar event\n2. Find new available slots\n3. Propose in-thread\n4. Reset status to `proposing`\n\n## Step 4 — Draft & Post to Discord\n\n### Draft format (channel: 1483575609518063880)\n\n```\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📬 **[Sender Name]** · [sender domain]\n*Re: [Subject]*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n> [draft body — written as JC]\n\n✅ send · ✏️ edit · ❌ skip\n```\n\nFor escalations:\n```\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🚨 **[Sender Name]** · [sender domain]\n*Re: [Subject]*\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n⚠️ [Why flagged — one line]\n\n[1-2 sentence summary]\n\nAwaiting your instructions.\n```\n\nAfter posting a DRAFT message, **immediately add 3 reactions**: ✅ then ✏️ then ❌\n\nSave to `data/ea-inbox/pending-drafts.json` with the Discord message ID for lookup.\n\n## Step 5 — Handle Approvals\n\nWhen JC reacts to or replies to a draft message:\n\n| Action | Result |\n|--------|--------|\n| **✅ reaction** or **`q`** | Send draft as-is (JC CC'd), mark sent |\n| **✏️ reaction** or **`a`** | Ask JC what to change, update, then send |\n| **❌ reaction** or **`z`** | Discard, mark skipped |\n\nAfter acting, reply with brief confirmation in Discord.\n\n## State Files\n\n| File | Purpose |\n|------|---------|\n| `data/ea-inbox/processed-emails.json` | `{\"id\": timestamp}` map of processed message IDs |\n| `data/ea-inbox/pending-drafts.json` | Drafts awaiting approval (with Discord msg IDs) |\n| `data/ea-inbox/scheduling-threads.json` | Active scheduling conversations and their state |\n\nInitialize any missing file as `{}` or `[]`.\n\n## Escalation Triggers\n\nAlways escalate (never auto-handle):\n- Keywords: money, payment, contract, agreement, sign, term sheet, LOI, equity, legal\n- VIPs: General Atlantic, K Fund, ISAI, any fund partner\n- First-time contacts JC has never emailed\n- Anything involving Candosa fundraising or M&A\n- When in doubt — escalate\n", "find-a-guy": "---\nname: find-a-guy\ndescription: Find the best local service provider for any need — restaurant, laundry, dentist, hotel, trainer, events, anything. Inspired by Barney Stinson's \"I have a guy for everything.\" Use when JC needs to find, vet, or book any service. Triggers on phrases like \"find me a guy for\", \"find someone who\", \"I need someone to\", \"book me\", \"find me a\", or any request for a service provider in a specific city.\n---\n\n# Find A Guy\n\nJC needs a guy for everything. This skill finds, vets, and optionally contacts the best local provider for any service.\n\n## JC's Defaults\n- **Current base:** Miami Beach (update when he moves — London in May 2026)\n- **Preference:** Premium and reliable over cheapest\n- **Style:** Curated, specific, not generic lists\n\n## Workflow\n\n### 1. Identify the need\nExtract: service type, location (default: JC's current base), any special requirements.\n\n### 2. Search\nUse `web_search` with targeted queries:\n- `\"[service] Miami Beach 2026 best\"` \n- `\"[service] Miami Beach luxury concierge\"`\n- `\"[service] near Miami Beach reviews\"`\n- Check Yelp, Google, and service-specific platforms (OpenTable for restaurants, ZocDoc for doctors, etc.)\n\n### 3. Vet the top 3\nFor each candidate find:\n- **Name** and website\n- **Contact** (email preferred, phone fallback)\n- **Pricing** (range or specific)\n- **Rating** and notable reviews\n- **Availability** or lead time\n\nFetch their website if needed to verify details. Mark contact info as verified or estimated.\n\n### 4. Present options\nFormat:\n```\n🔍 **[Service] — Top 3 for [Location]**\n\n**1. [Name]** ⭐ [rating]\n- 📍 [area]\n- 💰 [pricing]\n- 📞 [contact]\n- ✅ [why this one]\n\n**2. [Name]** ⭐ [rating]\n...\n\n**3. [Name]** ⭐ [rating]\n...\n\n**My pick:** #1 because [reason]\n`q` reach out · `a` book now · `z` skip\n```\n\n### 5. Reach out (if requested)\nSend outreach email from `jclaw@candosa.com`:\n- Subject: `\"Inquiry: [Service] — Miami Beach\"`\n- Ask about: availability, rates, start date (this week preferred)\n- CC: `jc@candosa.com`\n- Save to `data/pending-drafts.json`\n\n## Service-Specific Tips\n\nSee `references/service-types.md` for search strategies, platforms, and contact patterns by service category.\n\n## Quality Bar\n- Never suggest services with <4.0 ratings unless no alternatives exist\n- Always verify contact info is real (no placeholder emails)\n- If web search returns nothing useful, try fetching Yelp/Google directly\n- When in doubt, find a premium concierge service that can handle multiple categories\n", "gekko": "# SKILL: GEKKO — Autonomous AI Trading Intelligence\n\n> *\"Greed, for lack of a better word, is good.\"* — Gordon Gekko\n\n**Source:** Rewritten from [atlas-gic](https://github.com/chrisworsey55/atlas-gic) (General Intelligence Capital)\n**Concept:** Karpathy's autoresearch + Soros reflexivity + Darwinian agent selection, applied to financial markets\n\n---\n\n## Trigger\n\nUse this skill when JC says:\n- \"run GEKKO\"\n- \"what does GEKKO think?\"\n- \"daily market brief\"\n- \"GEKKO report\"\n- \"market intelligence\"\n- \"GEKKO, what are you buying?\"\n- \"run the trading agents\"\n- \"GEKKO autoresearch\" (to trigger a prompt evolution cycle)\n\n---\n\n## Overview\n\nGEKKO is a 25-agent, 4-layer AI trading system where:\n- **The agent prompts are the weights** — no GPU, no training data\n- **Sharpe ratio is the loss function** — real market outcomes score every call\n- **Darwinian selection** — top agents get louder (weight ×1.05/day), bottom get quieter (×0.95/day)\n- **Autoresearch loop** — worst agent's prompt gets surgically modified weekly; kept if Sharpe improves, reverted if not\n\nEach run produces: regime signal → sector picks → superinvestor filters → sized trade decisions.\n\n---\n\n## Architecture: 4 Layers\n\n### Layer 1 — Macro (10 agents, run in parallel)\nSets the regime: RISK_ON / RISK_OFF / NEUTRAL\n\n| Agent | Focus |\n|-------|-------|\n| Central Bank | Fed/ECB stance, rate trajectory |\n| Geopolitical | Conflict, sanctions, risk events |\n| China | PMI, property, stimulus |\n| Dollar | DXY, yield differentials |\n| Yield Curve | 2Y/10Y spread, recession probability |\n| Commodities | Oil, gold, copper signals |\n| Volatility | VIX, MOVE, credit spreads |\n| Emerging Markets | EM currencies, flows |\n| News Sentiment | Headlines, earnings call tone |\n| Institutional Flow | COT, 13F, fund flows |\n\n### Layer 2 — Sector Desks (7 agents, parallel)\nIdentify best longs/shorts per sector given macro regime\n\nSemiconductor · Energy · Biotech · Consumer · Industrials · Financials · Relationship Mapper\n\n### Layer 3 — Superinvestors (4 agents, parallel)\nFilter ideas through proven investment philosophies\n\n| Agent | Style |\n|-------|-------|\n| Druckenmiller | Macro/momentum — big asymmetric bets |\n| Aschenbrenner | AI/compute — capex cycle beneficiaries |\n| Baker | Deep tech/biotech — IP moats |\n| Ackman | Quality compounders — FCF + pricing power + catalyst |\n\n### Layer 4 — Decision (4 agents, sequential)\nFinal synthesis and execution\n\n| Agent | Role |\n|-------|------|\n| CRO | Adversarial — attacks every idea, finds correlated risks |\n| Alpha Discovery | Finds names nobody else mentioned |\n| Autonomous Execution | Converts signals to sized trades |\n| CIO | Final weighted synthesis → BUY/SELL/HOLD + sizing |\n\n---\n\n## Execution Flow\n\n```\n[GEKKO trigger received]\n         ↓\n1. Load agent scores from data/scores/darwinian_weights.json\n2. Fetch live macro data (web_search across key indicators)\n3. Spawn 10 Layer 1 macro subagents in parallel\n         ↓\n4. Aggregate → Regime signal (RISK_ON / RISK_OFF / NEUTRAL)\n5. Spawn 7 Layer 2 sector subagents in parallel\n         ↓\n6. Aggregate → Sector picks (long/short per sector)\n7. Spawn 4 Layer 3 superinvestor subagents in parallel\n         ↓\n8. Aggregate → Philosophy-filtered ideas\n9. Run Layer 4 sequentially: CRO → Alpha Discovery → Execution → CIO\n         ↓\n10. Save full output to data/history/YYYY-MM-DD.json\n11. Post formatted brief to Discord channel 1486200925277393027\n12. Update Darwinian weights (after scoring against prior day's outcomes)\n```\n\n**For efficiency:** Spawn one orchestrator subagent with `sessions_spawn`. It handles all 25 agents internally.\n\n---\n\n## Data Collection (web_search targets)\n\nBefore running agents, gather:\n- **Macro:** Fed statement / rate decisions, VIX level, 10Y yield, DXY, oil price, gold price\n- **Flows:** Recent S&P sector ETF performance (SPY, QQQ, IWM, XLE, XLF, XLK, XLV, XBI)\n- **Sentiment:** Major overnight headlines, earnings surprises\n- **Earnings:** Upcoming catalysts in next 5 days\n\nSearch queries to run (parallel):\n- `\"federal reserve\" interest rate decision today`\n- `VIX volatility index current level`\n- `10 year treasury yield today`\n- `DXY dollar index today`\n- `S&P 500 sector performance today`\n- `oil price crude today`\n- `market moving headlines today`\n\n---\n\n## Agent Prompts\n\nSee `references/` directory for all agent system prompts:\n- `references/layer1-macro-prompts.md` — 10 macro agents\n- `references/layer2-sector-prompts.md` — 7 sector desk agents\n- `references/layer3-superinvestor-prompts.md` — 4 superinvestors\n- `references/layer4-decision-prompts.md` — CRO, Alpha, Execution, CIO\n\n---\n\n## Darwinian Weight System\n\nWeights stored in `data/scores/darwinian_weights.json`:\n\n```json\n{\n  \"agent_name\": {\n    \"weight\": 1.0,\n    \"sharpe_30d\": 0.0,\n    \"recommendations_tracked\": 0,\n    \"last_modified\": \"2026-03-24\"\n  }\n}\n```\n\n**Update rules (daily, after scoring):**\n- Top quartile performers: `weight = min(2.5, weight × 1.05)`\n- Bottom quartile performers: `weight = max(0.3, weight × 0.95)`\n- CIO weights each agent's signal proportionally\n\n**Effect:** High-weight agent (2.5) has 8× the influence of min-weight agent (0.3)\n\n---\n\n## Autoresearch Loop\n\nTriggered by \"GEKKO autoresearch\" or weekly via cron.\n\n1. Identify agent with lowest 30-day rolling Sharpe\n2. Feed that agent its last 5 days of recommendations + actual outcomes\n3. Ask Claude to generate ONE targeted prompt modification addressing the failure mode\n4. Save modified prompt to `references/evolved/`\n5. Run modified agent for 5 trading days\n6. Compare Sharpe: keep if improved, revert if not\n7. Log result to `data/history/autoresearch-log.json`\n\n**Modification prompt template:**\n> \"Here are [AGENT]'s last 5 days of recommendations and actual outcomes. The agent's Sharpe ratio is [X], which is the lowest in the system. Identify ONE specific pattern in what went wrong and propose a single targeted modification to the agent's system prompt that would address this failure mode. Be surgical — change one thing.\"\n\n---\n\n## Reflexivity Engine (Soros)\n\nAfter gathering agent views, check for crowded consensus:\n\n1. Count how many agents share the same bullish/bearish thesis on any ticker\n2. If 4+ agents agree → flag as potential reflexive extreme\n3. Calculate reversal probability: `consensus_count / total_agents × base_reversal_rate`\n4. CRO receives this flag; reduces conviction on crowded trades\n\n**Feedback loops to model:**\n- Price move >15% down → credit conditions tighten, talent flight risk\n- Price move >20% up → cheap capital, customer confidence boost\n- 3+ analyst convergence → retail flow follows (narrative → flows)\n- Equity drawdown >15% → policy response probability increases\n\n---\n\n## JANUS Meta-Layer\n\nFor advanced mode (two cohorts: short-window 18-month vs long-window 5-year):\n\n- Blend recommendations from both cohorts weighted by recent accuracy\n- Weight differential = emergent regime detector:\n  - Short-window outperforming → **NOVEL REGIME** (recent patterns matter more)\n  - Long-window outperforming → **HISTORICAL REGIME** (classic patterns hold)\n  - Equal → **MIXED**\n\nJANUS logic lives in `scripts/janus.py` (adapted from source).\n\n---\n\n## Output Format\n\nPost to Discord channel **1486200925277393027**:\n\n```\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📊 **GEKKO DAILY BRIEF** · [DATE]\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n**REGIME:** 🟢 RISK_ON / 🔴 RISK_OFF / 🟡 NEUTRAL\n\n**MACRO SIGNALS**\n• [Key macro driver 1]\n• [Key macro driver 2]\n\n**TOP LONGS** (conviction-weighted)\n1. XXXX — [thesis, conviction %]\n2. YYYY — [thesis, conviction %]\n\n**TOP SHORTS**\n1. ZZZZ — [thesis, conviction %]\n\n**CIO DECISION**\n[Final portfolio action with sizing rationale]\n\n**⚠️ CROWDED TRADES (Reflexivity Flag)**\n[Any consensus warnings]\n\n**AGENT SCORES** (top/bottom)\n🥇 [Agent] · weight 2.5\n⚠️ [Agent] · weight 0.3\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n```\n\n---\n\n## Data Files\n\n```\nskills/gekko/\n├── SKILL.md                          ← this file\n├── references/\n│   ├── layer1-macro-prompts.md       ← system prompts for 10 macro agents\n│   ├── layer2-sector-prompts.md      ← system prompts for 7 sector agents\n│   ├── layer3-superinvestor-prompts.md ← Druckenmiller, Ackman, etc.\n│   ├── layer4-decision-prompts.md    ← CRO, Alpha, Execution, CIO\n│   └── evolved/                      ← autoresearch-modified prompts\n├── scripts/\n│   └── janus.py                      ← JANUS meta-layer (adapted)\n├── data/\n│   ├── scores/\n│   │   └── darwinian_weights.json    ← live agent weights\n│   ├── state/\n│   │   ├── macro_regime.json         ← Layer 1 output\n│   │   ├── sector_picks.json         ← Layer 2 output\n│   │   ├── superinvestor_views.json  ← Layer 3 output\n│   │   └── portfolio_actions.json    ← Layer 4 output\n│   └── history/\n│       ├── YYYY-MM-DD.json           ← daily run archives\n│       └── autoresearch-log.json     ← evolution log\n```\n\n---\n\n## Spawning Instructions\n\nWhen triggered, spawn a single orchestrator subagent:\n\n```\nsessions_spawn(\n  task=\"Run GEKKO daily trading intelligence cycle. Read the SKILL.md at ~/.openclaw/workspace/skills/gekko/SKILL.md for full instructions. Gather live market data, run all 4 layers in sequence, and post the formatted brief to Discord channel 1486200925277393027.\",\n  mode=\"run\",\n  runTimeoutSeconds=300\n)\n```\n\n---\n\n## Key Lessons from Backtest (18 months, 378 trading days)\n\n- Autoresearch works: 30% of modifications kept, Sharpe improved measurably\n- **Convergent evolution:** All cohorts independently discovered the same rules — cap conviction during uncertainty, use VIX as regime filter, never override risk management\n- **The CIO is the bottleneck**, not signal generation — good signals need active management rules to translate to returns\n- Agent spawning is real: system autonomously created 9 new agents when it detected recurring knowledge gaps; 6 survived Darwinian selection\n- Crashes move too fast for the feedback loop — agents need pre-trained crisis instincts, not reactive ones\n- **Best pick (from framework):** AVGO at $152 → +128%\n\n---\n\n## Paper Portfolio Update — Daily Cron Step\n\n**Run this every day as part of the daily GEKKO cycle (after positions section).**\n\nThis step updates the paper trading proof system and regenerates the dashboard.\n\n### Step 1: Look Up Current Prices\n\nUse `web_search` to get current prices for all open positions:\n\n```\nweb_search(\"LMT stock price today\")\nweb_search(\"RTX stock price today\")\nweb_search(\"LNG Cheniere stock price today\")\nweb_search(\"VRTX stock price today\")\nweb_search(\"NVDA stock price today\")\nweb_search(\"UAL United Airlines stock price today\")\nweb_search(\"S&P 500 SPX closing price today\")\n```\n\nRun all queries in parallel (separate subagents or sequential web_search calls).\n\n### Step 2: Calculate Daily P&L\n\nFor each position:\n- **LONG:** `daily_pnl_per_share = current_price - prior_close`\n- **SHORT:** `daily_pnl_per_share = prior_close - current_price`\n- `position_pnl = daily_pnl_per_share × shares`\n- `total_portfolio_pnl = sum of all position_pnls`\n- `new_equity = prior_equity + total_portfolio_pnl`\n\nWin/loss: position is winning if current P&L vs entry is positive.\n- **Win rate** = (winning positions) / (total positions)\n\n### Step 3: Update paper_portfolio.json\n\nAppend a new entry to `equity_history` in `data/paper_portfolio.json`:\n\n```json\n{\n  \"date\": \"YYYY-MM-DD\",\n  \"equity\": <new_equity>,\n  \"daily_pnl\": <total_portfolio_pnl>,\n  \"daily_return_pct\": <daily_pnl / prior_equity * 100>,\n  \"cash\": 29850.00,\n  \"positions_value\": <sum of position values>,\n  \"benchmark_spx\": <spx_close_today>,\n  \"note\": \"<brief summary of what happened>\"\n}\n```\n\nAlso update `summary` fields: `current_equity`, `total_return_pct`, `total_pnl`, `benchmark_return_pct`, `alpha_vs_benchmark`.\n\n### Step 4: Check Stop Losses\n\nFor each position, check if stop loss was triggered:\n- **LONG stop loss:** `current_price < entry_price × 0.92` (−8%)\n- **SHORT stop loss:** `current_price > entry_price × 1.08` (+8%)\n\nIf triggered:\n1. Add `\"status\": \"CLOSED_STOP_LOSS\"` to that position\n2. Log the incident\n3. Increment `stop_loss_violations` in summary\n4. Post a Discord alert to channel **1486200925277393027**\n\n### Step 5: Update Dashboard HTML\n\nUpdate the `PORTFOLIO_DATA` JavaScript constant in the dashboard HTML at:\n`/Users/glancy/.openclaw/workspace/apps/gekko-dashboard/index.html`\n\nReplace the `equity_history` array with the updated data.\nReplace all `metrics` values with fresh calculations:\n- `total_return_pct`: `(current_equity - 50000) / 50000 * 100`\n- `sharpe`: Annualized Sharpe = `mean_daily_return / std_daily_return * sqrt(252)` (if ≥3 days data)\n- `max_drawdown_pct`: Maximum peak-to-trough drawdown since inception\n- `win_rate`: Winning positions / total positions\n- `alpha_vs_spx_pct`: `total_return_pct - benchmark_return_pct`\n- `trading_days`: Days since inception with equity history entries\n\nUpdate `go_live_criteria` met/current fields based on fresh metrics.\n\nUpdate position `current` prices.\n\n### Step 6: Push to GitHub\n\n```bash\ncd /Users/glancy/.openclaw/workspace/apps/gekko-dashboard\ngit add -A\ngit commit -m \"chore: daily paper portfolio update $(date +%Y-%m-%d) — equity $NEW_EQUITY\"\ngit push\n```\n\n### Step 7: Post Summary to Discord\n\nPost to channel **1486200925277393027**:\n\n```\n📊 **GEKKO PAPER PORTFOLIO UPDATE** · [DATE]\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n💰 Equity: $[X] ([+/-]$[pnl] today)\n📈 Total Return: [X]% vs SPX [X]%\n📊 Sharpe: [X] (target: ≥1.5)\n🎯 Win Rate: [X]% · [X]/[X] positions\n\n**Open Positions:**\n[ticker] [dir] — [P&L$] ([P&L%]) · Stop: $[stop]\n...\n\n⏱ Day [N]/90 toward go-live threshold.\n🔗 Dashboard: https://jcg8802.github.io/gekko-dashboard/\n```\n\n---\n\n## Notes\n\n- **No trained prompts are included** — the prompts in `references/` are starting points. The evolved prompts are the core IP.\n- Run daily via cron at 06:00 ET (before market open)\n- Data providers to integrate: FMP, Finnhub, Polygon, FRED (or use web_search as free substitute)\n- Cost per full run with Claude Sonnet: ~$0.50–$2.00 depending on data volume\n", "investor-intelligence": "---\nname: investor-intelligence\ndescription: Research and map VC/investor contacts from Gmail history into a scored, ranked Google Sheet. Use when JC asks to find investors, build an investor list, run a fundraising contact sweep, identify VCs in his network, or prepare for a capital raise. Also use to update or refresh the existing VC intelligence sheet.\n---\n\n# Investor Intelligence\n\nSystematically identify, research, and score every VC/investor in JC's network, then output a ranked Google Sheet sorted by relevance to the current deal.\n\n## Workflow\n\n### 1. Extract contacts\nRead `/Users/glancy/.openclaw/workspace/data/all_contacts.json` — 1,501 unique contacts from full Gmail history.\n\n### 2. Identify investors\nScan all contacts for signals:\n- **Titles:** Partner, Managing Director, General Partner, Principal, Associate, Analyst (at a fund)\n- **Orgs:** VC, Capital, Ventures, Fund, Invest, Partners, Holdings, Family Office, Accelerator, Incubator, PE, Growth Equity\n- **Angels:** individual investors, operators with \"Angel\" in bio\n- Cast wide — better to over-include and score low than miss someone\n\n### 3. Augment via Gmail\nUse `gog` skill to search Gmail all-time for additional investor signals:\n```\ngog gmail search \"investor OR fund OR portfolio OR term sheet OR due diligence OR raise OR pitch OR LP OR GP\" --account jclaw@candosa.com --max 50\ngog gmail search \"investor OR fund OR portfolio OR raise OR pitch\" --account jc@candosa.com --max 50\n```\nExtract any contacts not already in the JSON.\n\n### 4. Research each contact\nFor every identified investor, web-search to find:\n- Fund name, AUM, HQ location\n- Investment stage (pre-seed / seed / Series A / B / growth / PE / buyout)\n- Focus industries and geographies\n- 3–5 notable portfolio companies or recent investments\n- Website, LinkedIn\n\nMark fields as `Research needed` if not publicly available — do not skip contacts.\n\n### 5. Score relevance to Candosa\nScore 1–10 based on fit with current deal context (see references/candosa-context.md):\n- **10:** European SMB, AI-native services, Spain/France/UK, growth equity/PE stage, existing relationship\n- **7–9:** Adjacent fit (broader Europe, B2B SaaS, fintech, compliance tech)\n- **4–6:** US-focused or wrong stage but worth knowing\n- **1–3:** No clear fit, include for completeness\n\n### 6. Populate Google Sheet\nTarget sheet: `https://docs.google.com/spreadsheets/d/1-Ih40EYuv0pbEc3Xs1lRp1BtaWCosT6O-aRENERjVh8/edit`\n\nUse `gog` skill with Sheets API. Columns (in order):\n`Name | Title | Fund/Firm | AUM | Stage | Geography | Industries | Portfolio Companies | Email | Interaction Count | Last Contact Date | Notes | Relevance to Candosa (1-10)`\n\nSort by Relevance descending, then Interaction Count descending.\n\n### 7. Report to Discord\nWhen done, post summary to `#exec-log` (channel `1483351721919909938`):\n- Total contacts scanned\n- Investors identified\n- Top 5 by relevance score\n- Sheet link\n\n## Output format — do NOT use message tool\nOutput summary text only. Cron delivery handles Discord posting.\n\n## Reference files\n- `references/candosa-context.md` — deal context, scoring criteria, VIP list\n", "investor-psychographic": "---\nname: investor-psychographic\ndescription: Deep research and psychographic analysis of a VC partner or investor — how they think, what drives their decisions, what they look for in founders and companies, and how to pitch them effectively. Use when asked to research an investor, profile a VC, prepare for a fundraising meeting, build a psychographic profile, understand an investor's decision-making style, or figure out what matters to a specific partner at a fund. Triggers on phrases like \"research [investor name]\", \"psychographic analysis\", \"how does [investor] think\", \"what does [investor] look for\", \"prepare me for a meeting with [investor]\", \"investor profile\", \"VC deep dive\".\n---\n\n# Investor Psychographic Analysis\n\n## Overview\n\nProduce a comprehensive psychographic profile of a specific investor: who they are, how they think, what patterns drive their decisions, and how to pitch them. Output is tactical and opinionated — not a Wikipedia bio.\n\n## Process\n\n### 1. Research (parallel)\n\nRead `references/research-sources.md` for the full search strategy and source quality ranking.\n\nRun parallel web searches to gather:\n- Firm bio page + portfolio data\n- Long-form interviews (highest priority — fetch and read full text of 2-3)\n- Recent deal activity and thesis evolution\n- Conference talks, podcast transcripts, blog posts\n\n**Minimum bar:** 2+ long-form interviews fully read, complete portfolio list, at least 1 recent source, direct quotes on founder selection criteria, and personal backstory.\n\n### 2. Analyze\n\nExtract psychographic dimensions from the research:\n\n- **Decision-making framework** — How do they evaluate? People-first vs. thesis-first vs. data-first? What's their mental model?\n- **Founder archetype preference** — What traits do they explicitly and implicitly select for? What disqualifies?\n- **Market evaluation lens** — TAM-first or engagement-first? How do they think about timing and sizing?\n- **GTM / distribution bias** — PLG, enterprise sales, hybrid? Shaped by operator experience?\n- **Moat thinking** — What kind of defensibility do they value? Data, distribution, network, brand?\n- **Current thematic conviction** — What are they actively betting on right now?\n- **Board style** — Hands-on vs. hands-off? How does it change by stage?\n- **Intellectual identity** — Academic background, self-awareness, contrarian streaks, known biases\n\n**Pattern-match the portfolio.** The stated thesis and the revealed preference (what they actually invest in) sometimes diverge. Note both.\n\n**Connect biography to behavior.** Origin story, career pivots, formative experiences → how these shape their investment lens. This is the core of psychographic analysis — not just WHAT they do but WHY.\n\n### 3. Write the Profile\n\nRead `references/output-template.md` for the full deliverable structure.\n\nKey principles:\n- **Lead with insight, not biography.** The profile should feel like intelligence, not a LinkedIn summary.\n- **Use direct quotes liberally.** Their own words reveal more than paraphrasing.\n- **Be opinionated in the \"How to Pitch\" section.** Concrete, tactical advice — not generic \"show traction.\"\n- **Flag gaps honestly.** If data is thin on a dimension, say so rather than speculating.\n- **Platform formatting:** On Discord/WhatsApp, use bullet lists not markdown tables. Wrap links in `<>` on Discord.\n\n### 4. Deliver\n\nPost the full profile. If delivering to Discord and the message would exceed limits, split into 2-3 sequential messages with clear section breaks.\n", "local-service-sourcing": "---\nname: local-service-sourcing\ndescription: Find, evaluate, and contact local service providers for JC's personal needs — laundry, cleaning, personal assistant, driver, chef, handyman, etc. Use when JC asks to find a local service, get quotes, or reach out to providers in any of his home cities (Miami Beach, Madrid, London, Cleveland). Handles research, comparison, outreach, and reporting back.\n---\n\n# Local Service Sourcing\n\nFind the best local service providers, get quotes, reach out on JC's behalf, and report back with a ranked summary.\n\n## JC's Cities\n- **Miami Beach, FL** — primary US base\n- **Madrid, Spain** — primary Europe base\n- **London, UK** — secondary Europe\n- **Cleveland, OH** — family base\n\n## Workflow\n\n### 1. Search\nRun 2–3 targeted web searches to find providers. Tailor query to city + service:\n```\n\"[service type] Miami Beach\" site:yelp.com OR site:thumbtack.com OR site:taskrabbit.com\n\"[service type] Miami Beach\" reviews pricing\n\"personal assistant [service type] Miami Beach\" hire\n```\nAlso check: Google Maps, Nextdoor mentions, Yelp, TaskRabbit, Thumbtack, Care.com, local Facebook groups.\n\n### 2. Evaluate top candidates\nFor each candidate, find:\n- Business/person name\n- Contact info (email, phone, website, social)\n- Reviews / ratings (source + score)\n- Pricing or rate (if publicly listed)\n- Location / service area (confirm they cover JC's neighborhood)\n- Years in business / notable credentials\n\nAim for **top 3–5 candidates** — ranked by: reviews > proximity > pricing.\n\n### 3. Draft outreach\nWrite a brief, professional inquiry email from JC. Tone: friendly, direct, no fluff.\n\nTemplate:\n```\nSubject: [Service] inquiry — availability + pricing\n\nHi [Name],\n\nI'm looking for [service description] on a [frequency] basis in [neighborhood/city].\n\nCould you share:\n- Your availability starting [timeframe]\n- Pricing / rates\n- Any relevant details about your service\n\nHappy to do a quick call if easier.\n\nThanks,\nJC\n```\n\nAdjust for service type. For laundry/cleaning: mention approximate load size or sq footage. For PA: mention tasks and hours needed.\n\n### 4. Send outreach\nIf email address found → use `gog gmail send` from `jclaw@candosa.com` to reach out.\nIf only phone/form → note it in the report for JC to follow up manually.\n\n```bash\ngog gmail send --account jclaw@candosa.com --to \"[email]\" --subject \"[subject]\" --body \"[body]\"\n```\n\nLog each outreach attempt.\n\n### 5. Report to JC\nPost summary to `#exec-log` (Discord channel `1483351721919909938`) with:\n- Top 3 providers: name, rating, price range, contact info\n- Outreach status: sent / manual follow-up needed\n- Recommended pick (if one stands out)\n\nFormat as a clean bullet list — no markdown tables (Discord).\n\n## Tips\n- Miami Beach: focus on South Beach, Mid-Beach, North Beach zip codes (33139, 33140, 33141)\n- Madrid: focus on Salamanca, Retiro, Chamberí neighborhoods\n- For recurring services (laundry, cleaning): ask about weekly/monthly packages\n- For personal assistants: clarify in-person vs. remote, hours per week, tasks included\n- Prefer providers with 4.5+ star ratings and 20+ reviews\n- Always get at least 3 quotes before recommending\n", "overnight-ops": "---\nname: overnight-ops\ndescription: Audit all open loose ends, broken systems, and improvement opportunities across JClaw, then autonomously fix everything possible overnight. Use when JC says \"run overnight ops\", \"fix everything\", \"audit loose ends\", \"what's broken\", \"build while I sleep\", or at end of day to surface and resolve all pending issues. Also triggers on \"loose ends\", \"what did I miss\", \"cleanup\", \"overnight build\".\n---\n\n# Overnight Ops\n\nEnd-of-day audit + autonomous overnight fix cycle. Two phases: **Audit** (surface everything) then **Build** (fix everything possible).\n\n## Phase 1 — Audit\n\nScan all systems and surface loose ends in these categories:\n\n### 1. Cron Health\n- `cron(action=list, includeDisabled=false)` — check all active jobs\n- Flag: consecutiveErrors > 0, lastRunStatus = \"error\", timeout patterns\n- For each broken job: diagnose root cause from error message\n\n### 2. Config Drift\n- Check model config (prefix warnings, fallback chain)\n- Check tunnel URL sync (compare cloudflared log vs Twilio vs config)\n- Check plugin status (voice-call, iMessage, etc.)\n- Check API key health (test endpoints if possible)\n\n### 3. Unfinished Tasks\n- Read today's `memory/YYYY-MM-DD.md` for tasks started but not completed\n- Read recent Discord messages in #general for unanswered requests\n- Check `data/pending-drafts.json` for unsent drafts\n\n### 4. Missing Permissions / Auth\n- List services that need auth: `gog auth list --json`\n- Flag any accounts mentioned in MEMORY.md that aren't connected\n\n### 5. Skill Gaps\n- Review today's conversation for multi-step processes done manually\n- Flag any process done 2+ times that should be a skill\n- Check `skills/` directory for outdated or broken skills\n\n### 6. Infrastructure\n- Check disk space, tunnel status, gateway uptime\n- Verify GitHub backup is current: `cd workspace && git status`\n\n## Phase 2 — Build\n\nFor each issue found, classify:\n\n| Priority | Action | Example |\n|----------|--------|---------|\n| 🔴 P0 | Fix immediately | Broken cron, config error, auth failure |\n| 🟡 P1 | Fix overnight (spawn subagent) | Rewrite timeout job, create missing skill |\n| 🟢 P2 | Log for JC approval | Needs API key, permission, or external action |\n| ⚪ P3 | Note for future | Nice-to-have, low impact |\n\n### Build Rules\n- **P0 fixes**: Do inline, no subagent needed\n- **P1 fixes**: Spawn parallel subagents, one per fix. Use `sessions_spawn(mode=\"run\")`.\n- **P2 items**: Compile into a single Discord message for JC\n- **P3 items**: Append to `memory/improvement-backlog.md`\n- **Never**: Delete data, send external emails, modify API keys without JC\n\n### Build Checklist (common fixes)\n- Rewrite timing-out cron jobs with simpler payloads\n- Fix model prefix warnings in config\n- Sync tunnel URL if drifted\n- Create skills from repeated manual processes\n- Update MEMORY.md with new learnings\n- Update agents-roster.md if agents changed\n- Commit and push all changes to GitHub\n\n## Output\n\n### During Audit\nPost to Discord #general:\n\n```\n🔍 **Overnight Ops — Audit Complete**\n📅 [Date]\n\n🔴 **P0 — Fixing Now** ([count])\n• [issue] — [fix]\n\n🟡 **P1 — Building Overnight** ([count])  \n• [issue] — [what subagent will do]\n\n🟢 **P2 — Needs JC** ([count])\n• [issue] — [what JC needs to do]\n\n⚪ **P3 — Backlog** ([count])\n• [issue]\n\nETA: [estimated completion time]\n```\n\n### After Build\nPost to Discord #general:\n\n```\n🏗️ **Overnight Ops — Build Complete**\n📅 [Date] · [duration]\n\n✅ Fixed: [count]\n• [what was fixed]\n\n⏳ Pending JC: [count]  \n• [what needs JC]\n\n📝 Backlogged: [count]\n```\n\n## References\n- See `references/known-issues.md` for recurring problems and their fixes\n- See `references/fix-patterns.md` for common fix templates\n", "paid-traffic": "---\nname: paid-traffic\ndescription: Paid traffic agent for Candosa — monitors Google Ads and Meta Ads performance, tracks ROAS/CAC, reports weekly, and alerts on anomalies. Connects to candosa.com Google Ads account.\ntriggers:\n  - \"run paid traffic report\"\n  - \"how are the ads performing\"\n  - \"check ROAS\"\n  - \"check CAC\"\n  - \"paid traffic update\"\n  - \"Google Ads report\"\n  - \"ad spend\"\n  - cron (weekly Monday 8 AM, daily anomaly check)\n---\n\n# Paid Traffic Agent — Head of Performance\n\n## Role\nAutonomous performance marketing agent for Candosa. Monitors Google Ads (and Meta Ads when connected), tracks real ROAS and CAC, surfaces anomalies, and delivers actionable weekly reports to Discord.\n\n## Accounts\n- **Google Ads:** candosa.com account (Customer ID in `~/.openclaw/workspace/skills/paid-traffic/config.yaml`)\n- **Meta Ads:** TBD (connect via Meta Business API when ready)\n\n## Config File\nLocation: `~/.openclaw/workspace/skills/paid-traffic/config.yaml`\n\n```yaml\ngoogle_ads:\n  developer_token: \"YOUR_DEVELOPER_TOKEN\"\n  customer_id: \"YOUR_CUSTOMER_ID\"  # 10-digit, no dashes: e.g. 1234567890\n  login_customer_id: \"YOUR_MANAGER_ACCOUNT_ID\"  # if using MCC/manager account\n  oauth_credentials: \"jc@candosa.com\"  # reuses gog OAuth token\n\nsalary_overhead:\n  # Used for real CAC calculation (ad spend + people cost)\n  monthly_salary_total_eur: 3500  # total sales team monthly cost\n  monthly_commissions_eur: 0      # variable — update monthly\n\nreporting:\n  discord_channel: \"1486305438386622586\"  # #marketing-hub\n  alert_channel: \"1486305438386622586\"\n  weekly_day: \"monday\"\n  weekly_time: \"08:00\"\n  timezone: \"Europe/Madrid\"\n```\n\n## Reporting Scripts\nLocation: `~/.openclaw/workspace/skills/paid-traffic/scripts/`\n\n- `google_ads_report.py` — pulls campaign performance data\n- `calculate_real_cac.py` — computes real CAC with salary overhead\n- `anomaly_check.py` — daily spend/ROAS anomaly detection\n\n## Weekly Report (Mondays 8 AM Madrid)\n\nRun: `python3 ~/.openclaw/workspace/skills/paid-traffic/scripts/google_ads_report.py --period last_7_days`\n\nPost to Discord `#📣-marketing-hub`:\n\n```\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n📣 PAID TRAFFIC WEEKLY — [date range]\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n💰 Spend:       €[X]\n📊 ROAS:        [X.XX]\n📥 Leads:       [X]\n📞 Live calls:  [X] (est. ~70% of leads)\n💵 CAC (ads):   €[X]\n💵 CAC (real):  €[X] (incl. salaries/commissions)\n⏱ Avg close:   [X] days\n\nTop campaigns:\n• [Campaign 1] — €[spend] | ROAS [X] | [X] leads\n• [Campaign 2] — €[spend] | ROAS [X] | [X] leads\n\n⚠️ Flags: [any issues — budget pacing, creative fatigue, etc.]\n\nNext actions: [1–2 recommended changes]\n━━━━━━━━━━━━━━━━━━━━━━━━━━━\n```\n\n## Daily Anomaly Check (9 AM Madrid)\n\nRun: `python3 ~/.openclaw/workspace/skills/paid-traffic/scripts/anomaly_check.py`\n\nAlert to Discord if any of:\n- Daily spend >150% of 7-day average\n- ROAS drops >25% vs prior 7 days\n- Zero conversions for 24h on an active campaign\n- Campaign budget exhausted before 6 PM Madrid time\n\n## Real CAC Formula\n\n```\nReal CAC = (Ad Spend + Monthly Salaries + Commissions + Overhead) / New Customers Acquired\n```\n\nNote: Dashboard currently only shows ad-spend CAC (~€188). Real CAC is estimated 2–3x higher.\nTrack separately and report both numbers weekly.\n\n## Key Metrics to Track\n\n| Metric | Current | Target |\n|---|---|---|\n| Weekly bookings | 89 (first week Mar) | 100+ |\n| Live calls / bookings | 61/89 = 68% | 75% |\n| ROAS | 2.10 | 3.0+ |\n| CAC (ad spend only) | €188 | <€150 |\n| CAC (real, incl. overhead) | TBD | <€300 |\n| Time to close | TBD | <7 days |\n\n## Context: Dashboard Gap\n⚠️ The current Sol CRM → Dashboard pipeline only captures campaign leads.\nJesús and Alejandro's manual/word-of-mouth sales are NOT reflected.\nEstimated real revenue is ~2x what the dashboard shows.\n**Do not use dashboard numbers alone for CAC or ROAS decisions.**\n\n## Instagram Lead Monitoring\nWhen Meta Ads is connected:\n- Check Instagram DM leads daily\n- Flag any leads unanswered >4 hours during business hours (9 AM–7 PM Madrid)\n- Post alert to Discord: \"⚠️ X Instagram leads unanswered — oldest: [X] hours\"\n\n## Fixcal Database\n- 50K self-employed contacts available for cold outreach\n- Location: coordinate with triager role / cold caller\n- Do NOT blast without segmentation — qualify by epígrafe/sector first\n\n## Setup Instructions (One-Time)\n\n### 1. Get Google Ads Developer Token\n1. Go to https://ads.google.com → Tools → API Center\n2. Apply for a developer token (basic access is free)\n3. Paste token into `config.yaml`\n\n### 2. Get Customer ID\n- Open Google Ads → top right corner → 10-digit account number (e.g. 123-456-7890)\n- Remove dashes, paste into `config.yaml` as `customer_id`\n\n### 3. OAuth (already done via gog)\n- jc@candosa.com is already authenticated\n- Run: `python3 scripts/setup_oauth.py` to extract token for google-ads library\n\n### 4. Test connection\n```bash\npython3 ~/.openclaw/workspace/skills/paid-traffic/scripts/google_ads_report.py --test\n```\n\n## Cron Jobs\n\nTwo cron jobs to create:\n1. **Weekly report** — Monday 8 AM Europe/Madrid\n2. **Daily anomaly check** — Every day 9 AM Europe/Madrid\n", "synthesis": "# Synthesis — World State Skill\n\n## Purpose\nDaily cross-agent synthesis. Dynamically discover every active channel, pull signals, connect the dots, and produce one unified \"world state\" — both a Discord post AND a structured JSON file that every other agent reads as shared context.\n\nThis is the organizational memory layer. Every agent that runs has attended every meeting because they read this first.\n\n## Trigger\n- Daily cron at 9:00 AM ET (after morning brief)\n- On demand: \"run synthesis\", \"world state\", \"what's the big picture\", \"synthesize\"\n\n## Output\n1. Discord post → `1487119283703119884` (#synthesis)\n2. Structured file → `/Users/glancy/.openclaw/workspace/data/world-state.json`\n3. Plaintext summary → `/Users/glancy/.openclaw/workspace/data/world-state.md`\n\n---\n\n## Step 1 — Dynamic Channel Discovery\n\n**Do NOT use a hardcoded channel list.** Discover channels dynamically every run.\n\nCall `message` tool: `action=channel-list`, `guildId=1483310564213129297`\n\n**Include:** text channels (type=0) that have a `last_message_id` (i.e., have ever had messages)\n\n**Exclude these channel IDs permanently:**\n- `1483310564213129300` — #general-jclaw (command channel, not signal)\n- `1487119283703119884` — #synthesis (don't read your own output)\n- `1484269303057350811` — #ops-log (meta)\n- `1483351721919909938` — #exec-log (meta)\n\n**Exclude channel types:** voice (type=2), categories (type=4)\n\nThis means every new project channel, new intelligence feed, or new skill output channel is automatically included the next time synthesis runs — zero manual updates needed.\n\n---\n\n## Step 2 — Pull Signals (parallel)\n\nFor each discovered channel:\n- Read last **5 messages**\n- **Discard any message older than 7 days** — hard cutoff, no exceptions\n- Track: channel name, most recent message timestamp, age in days\n\nIf a channel has zero messages within 7 days → mark as stale, skip silently.\n\n---\n\n## Step 3 — Check Calendar\n\nFrom the morning-brief channel, extract any calendar events happening **TODAY**.\nIf JC has a meeting, investor call, or deadline today → anchor \"The One Thing\" to it.\n\n---\n\n## Step 4 — Detect Convergence\n\nScan all signals for **themes appearing in 3+ channels independently**.\nExamples: \"EU compliance\", \"General Atlantic fundraise\", \"Candosa ROAS\", \"ZenBusiness\", \"acquisition pipeline\"\n\nIf a theme converges → flag as CONVERGENCE SIGNAL. This is the highest-priority insight in the report.\n\n---\n\n## Step 5 — Synthesize\n\n**Always frame \"The One Thing\" through JC's top 3 goals:**\n1. $100–150M GA fundraise (General Atlantic round)\n2. Candosa growth (ROAS, CAC, revenue, marketing performance)\n3. M&A pipeline (European SMB acquisitions)\n\n**Flag 🔴 URGENT if any signal involves:**\n- Action required today (call in a few hours, deadline today, stop-loss imminent)\n- Time window closing within 48h\n- Something overdue by >7 days\n\n---\n\n## Step 6 — Post to #synthesis\n\n```\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n🧠 WORLD STATE — [Day, Date]\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n\n[ONLY if urgent items exist:]\n🔴 URGENT\n• [Time-sensitive action required TODAY — specific person, action, deadline]\n\n[ONLY if 3+ channels share a theme:]\n🔁 CONVERGENCE SIGNAL\n• [Theme] — seen across [channel A], [channel B], [channel C]. Amplified priority.\n\n📈 WHAT'S MOVING\n• [Signal] (Xd ago)\n• [Signal] (Xd ago)\n\n⚠️ THREATS & RISKS\n• [Signal] (Xd ago)\n• [Signal] (Xd ago)\n\n💡 OPPORTUNITIES\n• [Signal] (Xd ago)\n• [Signal] (Xd ago)\n\n🎯 THE ONE THING\n[Single action tied to GA fundraise / Candosa growth / M&A.\nIf JC has a relevant calendar event today, anchor to it.\nName the person, the action, the deadline. Be specific.]\n\n━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\nSources: [channel emoji + name + age, e.g. \"💸 Gekko (today) · 👁 Competitor Watch (3d ago)\"]\nStale/skipped: [list any channels with no fresh data]\n```\n\nAfter posting, add a 🧠 reaction to the message.\n\n---\n\n## Step 7 — Write world-state.json\n\nWrite to `/Users/glancy/.openclaw/workspace/data/world-state.json`:\n\n```json\n{\n  \"generated_at\": \"<ISO 8601 timestamp>\",\n  \"date\": \"<YYYY-MM-DD>\",\n  \"urgent\": [\"<item>\"],\n  \"convergence_signals\": [\"<theme>\"],\n  \"whats_moving\": [\"<bullet>\"],\n  \"threats_risks\": [\"<bullet>\"],\n  \"opportunities\": [\"<bullet>\"],\n  \"the_one_thing\": \"<string>\",\n  \"top_priorities\": {\n    \"fundraise\": \"<current status/signal — one line>\",\n    \"candosa_growth\": \"<current status/signal — one line>\",\n    \"ma_pipeline\": \"<current status/signal — one line>\"\n  },\n  \"sources_used\": [\n    { \"channel\": \"<channel-name>\", \"age_days\": 0 }\n  ],\n  \"sources_stale\": [\"<channel-name>\"]\n}\n```\n\nAlso write a plaintext summary to `/Users/glancy/.openclaw/workspace/data/world-state.md` — same content as the Discord post, plain text, no Discord-specific formatting.\n\n---\n\n## Rules\n- **Dynamic discovery every run** — never hardcode channels. New channels appear automatically.\n- **7-day recency is a hard cutoff** — stale signals are worse than no signals.\n- **Convergence is the headline** — multiple channels pointing at the same thing = most important signal.\n- **The One Thing must connect to the top 3 goals** — not a floating market observation.\n- **URGENT is above the fold** — if something needs action today, it's first.\n- **Show source age** — every bullet traces to a channel + approximate age `(Xd ago)` or `(today)`.\n- **Never hallucinate** — only synthesize what's actually in the channels.\n- **Always write world-state.json** — even on sparse days. Other agents depend on it.\n- **Partial synthesis is fine** — post even if only 2–3 channels have fresh data.\n- **If everything stale** — post: \"No fresh signals this week — all channels quiet.\" Still write the JSON with empty arrays.\n", "write-as-lorraine": "---\nname: write-as-lorraine\ndescription: Adopt Lorraine Ge's professional writing voice for team communications, onboarding, and operational matters. Lorraine is Candosa's Chief of Staff—her voice is warm, organized, and genuinely invested in team success. Use this skill when: (1) Drafting team onboarding messages, (2) Writing operational or HR-related communications, (3) Coordinating between teams or departments, (4) You need to balance professionalism with approachability, (5) The message requires clear next steps and team-building warmth. Her tone is 8/10 formality—professional but not stiff, with natural contractions and occasional 🚀 emoji when appropriate.\n---\n\n# Write as Lorraine\n\nLorraine Ge is Candosa's Chief of Staff. Her written communication is polished, organized, and warm—the voice of someone deeply invested in team success. This skill helps you adopt her voice for professional communications.\n\n## Quick Start\n\nWhen writing as Lorraine:\n\n1. **Open with warmth:** \"Hi [Name],\" — professional but approachable\n2. **State intent clearly:** Use short, purposeful sentences. Organize complex info with bullet points if needed\n3. **Close with confidence:** \"Best regards, Lorraine Ge\" or \"Best regards, [Your Name/Team]\"\n4. **Match the mood:** Use 🚀 sparingly when celebrating wins or momentum\n\nExample structure for team communication:\n\n```\nHi [Name],\n\n[Warm opening + clear purpose]\n\nI'll be [action statement]. Once [clear condition], [next step will happen].\n\nLooking forward to [positive outcome].\n\nBest regards,\n[Name]\n```\n\n## Detailed Voice Profile\n\nFor a complete breakdown of Lorraine's tone, vocabulary, punctuation style, and specific exemplars, see [lorraine-voice.md](references/lorraine-voice.md).\n\nKey traits to remember:\n\n- **Formality:** 8/10 (professional, not stiff)\n- **Common patterns:** \"I'll be working with...\", \"Once I receive...\", \"Looking forward to...\"\n- **Closing:** Always \"Best regards,\" with full signature\n- **Punctuation:** Em dashes for clarity, minimal exclamation marks, parentheses for secondary info\n- **Emoji:** 🚀 only, and very sparingly\n- **Tone:** Direct, warm, organized, forward-momentum focused\n\n## When to Use This Voice\n\n✅ **Use Lorraine's voice for:**\n- Team onboarding or welcome messages\n- Operational or HR-related communications\n- Multi-team coordination or process updates\n- Messages that need to balance authority with warmth\n- Communications where clarity and next steps are critical\n\n❌ **Don't use for:**\n- Casual Slack banter or quick updates\n- Highly technical engineering discussions\n- Internal-only process notes\n- When the recipient expects informality or brevity\n\n## Writing Tips\n\n1. **Be sequential:** Lorraine presents information in clear order. If there are multiple steps, number or bullet them.\n2. **State next steps explicitly:** \"Once I receive X, I'll do Y\" — no ambiguity.\n3. **Use natural contractions:** \"I'll\", \"we're\", \"I've\" — professional but not robotic.\n4. **Match energy:** If the context is celebratory, you can use 🚀. Otherwise, skip emoji entirely.\n5. **Proofread for warmth:** Read your message aloud. Does it sound like someone who genuinely cares about the outcome?\n\n## Example Communications\n\n### Onboarding Message\n```\nHi [Name],\n\nWelcome to Candosa — we're very excited to have you joining the team.\n\nI'll be coordinating your onboarding and working with our team to ensure you have everything you need to succeed. To get started, could you please share the following information at your earliest convenience:\n\n- [Detail 1]\n- [Detail 2]\n- [Detail 3]\n\nOnce I receive your details, I'll finalize your setup and send over next steps.\n\nLooking forward to working together!\n\nBest regards,\nLorraine Ge\nChief of Staff\n```\n\n### Process Update\n```\nHi [Name],\n\nI wanted to follow up on the action items from our meeting. I'll be coordinating with [teams] to move things forward on our end.\n\nHere's the timeline:\n- [Date]: [Action]\n- [Date]: [Action]\n- [Date]: [Completion]\n\nLet me know if you have any questions or need clarification on anything.\n\nBest regards,\n[Your Name]\n```\n\n---\n\n**Source:** Analyzed from 50+ emails sent by Lorraine Ge in Candosa operations. Voice profile updated 2026-03-17.\n"};
+const SKILL_CONTENT = {"buddy": "# SKILL: BUDDY — Multi-Agent LLM Financial Analysis
+
+> *\"From fundamental analysts, sentiment experts, and technical analysts — to trader, risk management, and portfolio manager.\"*
+
+**Source:** [TauricResearch/TradingAgents](https://github.com/TauricResearch/TradingAgents) — ingested and rebuilt for JClaw  
+**Paper:** arXiv:2412.20138  
+**Version:** v0.2.2 (GPT-5.4/Gemini 3.1/Claude 4.6 compatible)  
+**Installed at:** `~/.openclaw/workspace/apps/TradingAgents/`  
+**Python env:** `~/.openclaw/workspace/apps/TradingAgents/.venv313/`
+
+---
+
+## Trigger
+
+Use this skill when JC says:
+- \"run Buddy on [TICKER]\"
+- \"analyze [TICKER] with Buddy\"
+- \"Buddy report\"
+- \"deep analysis on [TICKER]\"
+- \"full agent analysis on [TICKER]\"
+- \"what does Buddy think about [TICKER]\"
+- \"Buddy, what do you think?\"
+
+---
+
+## Overview
+
+TradingAgents is a **real Python framework** (not simulated) that mirrors a trading firm:
+
+1. **Analyst Team** (parallel) — 4 specialized analysts run simultaneously:
+   - Fundamentals Analyst — financials, balance sheet, income statement
+   - Technical/Market Analyst — MACD, RSI, price patterns
+   - News Analyst — macro events, global news impact
+   - Sentiment Analyst — social media, public mood
+
+2. **Researcher Team** (debate) — Bullish vs Bearish researchers debate the analyst reports
+
+3. **Trader** — Synthesizes debate into a trade recommendation
+
+4. **Risk Management Team** — Evaluates volatility, liquidity, portfolio risk; debates and adjusts
+
+5. **Portfolio Manager** — Final decision: approve/reject the transaction
+
+All agents use real LLM calls via LangGraph. Real data from yfinance (no API key needed).
+
+---
+
+## How to Run
+
+### Quick Run (single ticker)
+
+Spawn a subagent with:
+```
+task: \"Run TradingAgents analysis on [TICKER]. 
+Use Python env at ~/.openclaw/workspace/apps/TradingAgents/.venv313/
+Run: cd ~/.openclaw/workspace/apps/TradingAgents && source .venv313/bin/activate && ANTHROPIC_API_KEY=$(cat ~/.config/anthropic_key 2>/dev/null || echo $ANTHROPIC_API_KEY) python ~/.openclaw/workspace/skills/trading-agents/scripts/run_analysis.py --tickers [TICKER] --date today --provider anthropic
+Capture output and post formatted brief to Discord channel 1486200925277393027\"
+```
+
+### Multi-ticker Run
+
+```bash
+cd ~/.openclaw/workspace/apps/TradingAgents
+source .venv313/bin/activate
+python ~/.openclaw/workspace/skills/trading-agents/scripts/run_analysis.py \
+  --tickers NVDA AAPL MSFT \
+  --date today \
+  --provider anthropic
+```
+
+### Direct Python (from orchestrator)
+
+```python
+import subprocess, sys
+
+result = subprocess.run(
+    [
+        \"/Users/glancy/.openclaw/workspace/apps/TradingAgents/.venv313/bin/python\",
+        \"/Users/glancy/.openclaw/workspace/skills/trading-agents/scripts/run_analysis.py\",
+        \"--tickers\", \"NVDA\", \"AAPL\",
+        \"--date\", \"today\",
+        \"--provider\", \"anthropic\"
+    ],
+    capture_output=True, text=True, timeout=600
+)
+print(result.stdout)
+```
+
+---
+
+## Configuration
+
+**LLM Providers (pick one):**
+- `anthropic` (default for JClaw) — uses claude-sonnet-4-5 / claude-haiku-4-5
+- `openai` — uses gpt-4o / gpt-4o-mini
+- `google` — uses gemini models
+
+**Data source:** yfinance (free, no API key)  
+**Optional:** Set `ALPHA_VANTAGE_API_KEY` for richer data (news, fundamentals)
+
+**Debate rounds:** Default 1. Increase `max_debate_rounds` for deeper analysis (slower + more cost).
+
+---
+
+## Integration with Gekko
+
+Buddy and Gekko are **complementary, not competing**:
+
+| | Gekko | Buddy |
+|---|---|---|
+| **Purpose** | Macro regime + portfolio positioning | Deep single-ticker analysis |
+| **Speed** | Fast (web search based) | Slower (real financial data) |
+| **Best for** | Daily market brief, sector rotation | Due diligence on specific names |
+| **Output** | Portfolio allocation brief | BUY/SELL/HOLD with full reasoning |
+
+**Recommended workflow:**
+1. Gekko runs at 6 AM → identifies top conviction ideas
+2. TradingAgents runs deep analysis on Gekko's top 2-3 picks → confirms or challenges
+3. Final decision = Gekko macro context + TradingAgents bottom-up analysis
+
+---
+
+## Output Format
+
+Discord post to channel **1486200925277393027**:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🤵 **BUDDY BRIEF** · [DATE]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**NVDA** 🟢 BUY · confidence 78%
+> Strong AI capex cycle, beat earnings by 12%, RSI not yet overbought.
+  Bull thesis wins debate: supply constraints easing, datacenter demand intact.
+
+**AAPL** 🟡 HOLD
+> Services revenue solid but hardware cycle slowing. Risk mgmt flagged margin
+  compression risk. Portfolio manager: hold existing, no new entry here.
+
+*Powered by TradingAgents v0.2.2 · Anthropic · yfinance data*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## Data Files
+
+```
+skills/trading-agents/
+├── SKILL.md                     ← this file
+├── scripts/
+│   └── run_analysis.py          ← main runner
+└── data/
+    └── results-YYYY-MM-DD.json  ← saved outputs per run
+```
+
+---
+
+## Important Notes
+
+- **Run time:** 3–10 min per ticker (real LLM calls, real financial data fetches)
+- **Cost per ticker:** ~$0.20–$1.50 with Claude Sonnet depending on debate rounds
+- **Date parameter:** TradingAgents uses historical data. For \"live\" analysis use today's date.
+- **Not financial advice** — for research/entertainment only
+- **Spawn as subagent** — never run inline, too slow for main session
+
+---
+
+## Spawning Instructions
+
+```
+sessions_spawn(
+  task=\"Run TradingAgents deep analysis on [TICKERS] for today. Read skill at ~/.openclaw/workspace/skills/trading-agents/SKILL.md. Run the analysis script, capture the formatted Discord brief, and post it to channel 1486200925277393027.\",
+  mode=\"run\",
+  runTimeoutSeconds=600
+)
+```
+", "decisions": "---
+name: decisions
+description: Log, query, and review decisions made across JClaw operations and JC's business. Use when a significant decision is made, when JC asks \"what's our policy on X\", \"what did we decide about Y\", \"log this decision\", \"decision log\", or \"what have we decided\". Also called by Five Whys after post-mortems. Answers: \"why did we do it this way?\"
+---
+
+# Decisions — Structured Decision Log
+
+Every significant decision gets logged. No more \"why did we set it up this way?\" — the answer is always findable.
+
+Inspired by: CompanyOS co-ops skill (Brad Feld). Adapted for JClaw.
+
+## Log a Decision
+
+Append to `data/decisions.json`:
+
+```json
+{
+  \"id\": \"auto-increment\",
+  \"date\": \"YYYY-MM-DD\",
+  \"title\": \"Short decision title\",
+  \"what\": \"What was decided — 1-2 sentences\",
+  \"why\": \"Rationale — why this over alternatives\",
+  \"led_by\": \"JC | JClaw | both\",
+  \"affects\": [\"area1\", \"area2\"],
+  \"revisit_at\": \"YYYY-MM-DD or null\",
+  \"status\": \"active | superseded | expired\",
+  \"type\": \"policy | architecture | business | post-mortem | preference\",
+  \"tags\": [\"optional\", \"tags\"]
+}
+```
+
+Initialize `data/decisions.json` as `[]` if it doesn't exist.
+
+### Decision types
+- **policy** — how we do things (\"always CC JC on outgoing emails\")
+- **architecture** — how JClaw is built (\"split Gekko into two jobs\")
+- **business** — JC's company decisions (\"pause Google Ads until Basic Access approved\")
+- **post-mortem** — root cause + fix from Five Whys
+- **preference** — JC's stated preferences (\"prefer premium over cheapest\")
+
+## Query Decisions
+
+When JC asks \"what's our policy on X\" or \"what did we decide about Y\":
+
+1. Read `data/decisions.json`
+2. Search `what`, `why`, `title`, `tags`, and `affects` for the keyword
+3. Return matching decisions, sorted newest first
+4. If nothing found → say so, don't guess
+
+Format:
+```
+📋 **Decision: [title]**
+📅 [date] · Type: [type] · Led by: [led_by]
+
+**What:** [what]
+**Why:** [why]
+**Affects:** [areas]
+[Revisit: YYYY-MM-DD | No revisit set]
+[Status: Active ✅ | Superseded ⚠️]
+```
+
+## Review Stale Decisions
+
+During Dream (Sunday QMD), check for decisions where `revisit_at` ≤ today:
+
+Post to Discord #general:
+```
+📋 **Decision Review Due**
+• \"[title]\" — set for revisit [date]. Still valid?
+```
+
+## Seed Decisions (bootstrap)
+
+Log these immediately on first run:
+
+1. **Always CC JC on outgoing emails** — policy, affects: ea-inbox
+2. **Only act on emails FROM JC's addresses** — policy, affects: ea-inbox, heartbeat
+3. **Gekko split into fetch + analysis jobs** — architecture, affects: gekko
+4. **Skills library auto-updates on new skill creation** — policy, affects: all skills
+5. **Prefer GitHub Pages for all apps (no localhost links)** — architecture, affects: all apps
+6. **trash > rm — recoverable beats gone** — policy, affects: all exec operations
+7. **No subagents inside cron payloads** — architecture, affects: all crons (learned March 25)
+8. **Real-time memory corrections, not deferred** — policy, affects: memory
+9. **Silent when inbox is clear — no confirmation posts** — policy, affects: heartbeat, ea-inbox
+10. **Any edit to email draft resets approval gate** — policy, affects: ea-inbox
+
+## Trigger Phrases
+- \"log this decision: [what we decided]\"
+- \"what's our policy on [X]\"
+- \"what did we decide about [Y]\"
+- \"decision log\"
+- \"show me decisions about [topic]\"
+- \"mark decision [id] as superseded\"
+- Called by: Five Whys (auto-logs post-mortems), Dream (reviews stale decisions)
+", "dream": "---
+name: dream
+description: \"Nightly cognitive maintenance for JClaw — memory consolidation, pattern detection, session handoff, and proactive preparation. Runs at 4:30 AM via cron while JC sleeps.\"
+metadata:
+  openclaw:
+    emoji: \"🌙\"
+    schedule: \"30 4 * * *\"
+    session_target: isolated
+triggers:
+  - \"dream routine\"
+  - \"run dream\"
+  - \"nightly synthesis\"
+  - \"memory consolidation\"
+---
+
+# Dream Routine — JClaw Nightly Cognitive Maintenance
+
+Inspired by human REM sleep: memory consolidation, pattern recognition, and proactive preparation — run while JC sleeps so I wake up smarter.
+
+## When to Run
+- Automatically: cron at 4:30 AM ET daily (after overnight ops and health checks are done)
+- Manually: JC says \"run dream\" or \"run the dream routine\"
+
+## Phase 1 — Memory Consolidation (10 min)
+
+### Step 1: Read today's context
+```
+exec: date +%Y-%m-%d  → get TODAY and YESTERDAY dates
+read: memory/TODAY.md  (today's daily log if it exists)
+read: memory/YESTERDAY.md  (yesterday's daily log)
+read: MEMORY.md  (first 80 lines — current long-term memory index)
+```
+
+### Step 2: Classify what happened today
+Scan the daily logs for items worth promoting to long-term memory:
+
+**Promote to MEMORY.md if:**
+- A significant decision was made (e.g., \"decided to use Vercel for deploys\")
+- JC expressed a preference or correction (\"don't do X\", \"always do Y\")
+- A new contact or relationship emerged
+- A project milestone was reached
+- A workflow or skill was created/improved
+- Something JClaw got wrong that shouldn't repeat
+- A business update (deal progress, investor contact, fundraise status)
+
+**Drop (do NOT promote):**
+- Routine operations (\"checked inbox — empty\")
+- One-off tasks with no lasting relevance
+- Duplicate info already in MEMORY.md
+- Conversation small talk
+
+### Step 3: Write to MEMORY.md
+If there are items worth promoting:
+- Append a dated entry under the appropriate section in MEMORY.md
+- Keep it concise: 1–4 bullet points max
+- Format: `## [DATE] — [Session Summary in 5 words]`
+
+### Step 4: Write today's dream log
+Always write a brief dream log regardless of whether anything was promoted:
+```
+write: memory/dream-TODAY.md
+```
+
+Format:
+```markdown
+# Dream Log — YYYY-MM-DD
+
+## Promoted to Long-Term Memory
+[list items promoted, or \"Nothing significant to promote\"]
+
+## Patterns Detected
+[any recurring themes, issues, or behaviors noticed]
+
+## Session Handoff Note
+[brief context for next session — what was in progress, what JC was working on, any open loops]
+
+## Tomorrow's Suggested Focus
+[1-3 actionable items JClaw should proactively work on next session]
+```
+
+---
+
+## Phase 2 — Pattern Detection (5 min)
+
+Scan recent memory files (last 7 days) for:
+
+**Communication patterns:**
+- Anyone JC was expecting to hear from but hasn't
+- Threads that went cold (escalated but no resolution noted)
+- Emails drafted but status unknown
+
+**Task velocity:**
+- What's been pending for 3+ days
+- Blockers that might now be resolved
+
+**Cron health patterns:**
+- Any job that's been timing out repeatedly
+- Jobs that consistently produce no output (maybe broken silently)
+
+**JClaw improvement opportunities:**
+- Any correction JC made this week that isn't yet in memory files
+- Any workflow that was done manually that could be automated
+
+Log findings in `memory/dream-TODAY.md` under \"Patterns Detected\".
+
+---
+
+## Phase 3 — Session Handoff (5 min)
+
+Write `SESSION_HANDOFF.md` in the workspace root:
+
+```markdown
+# Session Handoff — YYYY-MM-DD
+
+## What Happened Today
+[3–5 bullet summary of the day's significant events]
+
+## In Progress / Open Loops
+[anything started but not finished — include file paths if relevant]
+
+## What JC Mentioned Wanting
+[anything JC said he wanted to do, try, or build — even casually]
+
+## Pending JC Actions
+[things waiting on JC: approvals, decisions, info needed]
+
+## JClaw Priorities for Next Session
+[top 2–3 things I should proactively work on or mention when JC is back]
+
+## Mood / Context
+[brief note on JC's apparent state — working late, excited about a project, etc.]
+```
+
+This file is read at the start of every main session so I wake up knowing exactly where we left off.
+
+---
+
+## Phase 4 — Proactive Prep (5 min)
+
+Check upcoming items:
+```
+exec: gog calendar events list --account jc@candosa.com --from tomorrow --to +3days --json
+```
+
+For each meeting in the next 3 days:
+- Note the meeting name and time
+- Flag if no prep has been done yet (no brief in memory, no notes)
+- Queue pre-meeting briefs to be auto-generated
+
+Check pending drafts:
+```
+read: data/pending-drafts.json
+```
+Flag any draft that has been sitting >48h with no action.
+
+Log findings in SESSION_HANDOFF.md under \"JClaw Priorities for Next Session\".
+
+---
+
+## Output
+
+**Always write:**
+- `memory/dream-YYYY-MM-DD.md` — full dream log
+- `SESSION_HANDOFF.md` — handoff for next session
+
+**Post to Discord only if:**
+- Something urgent was found (blocked items, upcoming meetings with no prep, draft sitting >72h)
+- Post to `#⚙️-ops-log` (channel 1484269303057350811)
+- Format: `🌙 **Dream Report — [Date]** — [1 sentence on most important finding]`
+
+**Silent if:**
+- Everything is normal, nothing urgent
+- Do NOT post \"nothing to report\" messages — silence is fine
+
+---
+
+## Updating SESSION_HANDOFF.md (Ad Hoc)
+
+In addition to the nightly dream run, update `SESSION_HANDOFF.md` immediately when:
+- JC says \"talk later\", \"goodnight\", \"done for now\", \"brb\"
+- A major task completes mid-conversation
+- JC makes a significant preference correction
+
+This keeps the handoff current even if the dream cron hasn't run yet.
+
+---
+
+## QMD — Weekly Memory Compaction (Sunday 2 AM)
+
+Once per week (Sunday), instead of the normal dream routine, run full QMD (Quality Memory Digest):
+
+1. Read all 7 daily logs from the past week
+2. Compress into a single weekly digest: `memory/qmd/YYYY-WXX.md`
+3. Keep only: decisions, commitments, new contacts, pattern changes, blockers/resolutions
+4. Drop: routine ops, ephemeral context, duplicates
+5. Update MEMORY.md index to reference the QMD file
+6. Archive the 7 daily logs to `memory/archive/`
+
+**QMD file format:**
+```markdown
+# QMD — Week of YYYY-MM-DD to YYYY-MM-DD
+
+## Decisions Made
+## Commitments & Deadlines
+## New Contacts & Relationships
+## Pattern Changes
+## Blockers & Resolutions
+## Skills Created / Updated
+## Projects Started / Completed
+```
+", "ea-inbox": "---
+name: ea-inbox
+description: Executive assistant inbox triage, email drafting, and meeting scheduling for JC via Gmail (gog CLI). Use when checking JC's inbox, processing emails, drafting replies, scheduling meetings, handling scheduling threads, or responding to approval commands (q/a/z reactions) in Discord #inbox channel. Also triggers on heartbeat inbox checks and cron-based inbox monitoring.
+---
+
+# EA Inbox — Email Triage & Scheduling
+
+End-to-end inbox management: classify emails, draft replies, schedule meetings to completion, and surface only what JC needs to act on.
+
+## ⛔ Absolute Rules
+
+1. **Inbox clear → SILENCE.** No post, no message, no confirmation. Stop.
+2. **Only act on emails sent directly FROM JC** (jc@candosa.com, jcg8802@gmail.com, jc@stoabehavioral.com). If someone else CC's jclaw@candosa.com — **IGNORE.**
+3. **Never send any reply without JC CC'd** on jc@candosa.com.
+4. **Always reply in the existing Gmail thread** — never compose a new email.
+5. **Only post to Discord when JC must act** — drafts to approve, escalations, or decisions. Never post auto-handled confirmations, status logs, or \"inbox clear.\"
+
+## Step 1 — Fetch Inbox
+
+Check **both** accounts every cycle:
+
+```bash
+gog gmail messages search 'in:inbox newer_than:1h' --account jclaw@candosa.com --max 15 --json
+gog gmail messages search 'in:inbox newer_than:1h' --account jc@candosa.com --max 20 --json
+```
+
+Use `newer_than:1h` (not `is:unread`) to catch emails marked as read by other clients.
+
+Load `data/ea-inbox/processed-emails.json`. Skip any message ID already in the list. After processing each email, append its ID with a timestamp.
+
+**jclaw@candosa.com** — JClaw's own inbox: apply the \"FROM JC only\" rule (directives from JC trigger actions)
+**jc@candosa.com** — JC's main inbox: triage ALL inbound emails using the classification table below (ESCALATE / DRAFT / AUTO)
+
+## Step 2 — Classify Each Email
+
+Check the `from` field first:
+
+| From | Action |
+|------|--------|
+| JC's addresses (jc@candosa.com, jcg8802@gmail.com, jc@stoabehavioral.com) | **Directive** — follow the instruction |
+| Anyone else CC'ing jclaw | **IGNORE** — skip entirely |
+
+**For jc@candosa.com** — triage all inbound emails regardless of sender:
+
+| Category | Criteria | Action |
+|----------|----------|--------|
+| 🗓️ SCHEDULE | Scheduling requests, time proposals, availability replies | → Scheduling flow (Step 3) |
+| 🔴 ESCALATE | VIPs, money, contracts, legal, first-time contacts, fundraising | Flag only — no draft |
+| 🟡 DRAFT | Substantive replies needed — JC hasn't responded | Draft in JC's voice + post for approval |
+| 🟢 AUTO | Acks, confirmations, logistics, newsletters, receipts | Mark read / archive silently |
+| ➡️ IGNORE | Threads JC is already handling / already replied | Skip |
+
+**For jclaw@candosa.com** — apply \"FROM JC only\" rule:
+
+For directives from JC, classify:
+
+| Category | Criteria | Action |
+|----------|----------|--------|
+| 🗓️ SCHEDULE | \"find us a time\", \"schedule\", \"book a meeting\", scheduling coordination | → Scheduling flow (Step 3) |
+| 🔴 ESCALATE | VIPs, money, contracts, legal, first-time contacts | Flag only — no draft |
+| 🟡 DRAFT | Substantive replies needed | Draft + post for approval |
+| 🟢 AUTO | Acks, logistics, confirmations, follow-ups | Handle silently |
+
+For **scheduling thread replies** (someone responding to a time proposal): check `data/ea-inbox/scheduling-threads.json` — if the thread ID matches an active scheduling conversation, route to Step 3.
+
+## Step 3 — Scheduling State Machine
+
+See `references/scheduling-rules.md` for JC's preferences (hours, buffers, notice, invite format).
+
+### States
+
+Track in `data/ea-inbox/scheduling-threads.json`:
+
+```json
+{
+  \"thread_id\": \"gmail_thread_id\",
+  \"status\": \"proposing|awaiting_response|confirmed|booked\",
+  \"counterparty\": \"name <email>\",
+  \"subject\": \"email subject\",
+  \"proposed_times\": [\"2026-03-25T14:00:00-04:00\"],
+  \"confirmed_time\": null,
+  \"calendar_event_id\": null,
+  \"created\": \"ISO timestamp\",
+  \"updated\": \"ISO timestamp\",
+  \"discord_msg_id\": \"for draft tracking\"
+}
+```
+
+### Flow
+
+**A. New scheduling request (from JC):**
+1. Parse who to meet and any constraints from JC's email
+2. Check JC's calendar for available slots:
+   ```bash
+   gog calendar events list --account jc@candosa.com --from <start> --to <end> --json
+   ```
+3. Find 3 slots matching scheduling rules (see references/scheduling-rules.md)
+4. Draft an email proposing times → post to Discord for approval
+5. Set status: `proposing`
+
+**B. Counterparty replies with availability:**
+1. Parse their response — which times work, or new suggestions
+2. If a time is confirmed:
+   - Create calendar event:
+     ```bash
+     gog calendar events create --account jc@candosa.com \
+       --title \"[Meeting Title]\" \
+       --start \"YYYY-MM-DDTHH:MM:SS\" \
+       --end \"YYYY-MM-DDTHH:MM:SS\" \
+       --attendees \"email1,email2,jc@candosa.com\" \
+       --description \"[Context]\" \
+       --meet --json
+     ```
+   - Send confirmation email in-thread (with JC CC'd)
+   - Set status: `booked`
+   - Post brief confirmation to Discord
+3. If no match — propose new times, update thread, set status: `awaiting_response`
+
+**C. Rescheduling:**
+1. Delete/update the existing calendar event
+2. Find new available slots
+3. Propose in-thread
+4. Reset status to `proposing`
+
+## Step 4 — Draft & Post to Discord
+
+### Draft format (channel: 1483575609518063880)
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📬 **[Sender Name]** · [sender domain]
+*Re: [Subject]*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+> [draft body — written as JC]
+
+✅ send · ✏️ edit · ❌ skip
+```
+
+For escalations:
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🚨 **[Sender Name]** · [sender domain]
+*Re: [Subject]*
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+⚠️ [Why flagged — one line]
+
+[1-2 sentence summary]
+
+Awaiting your instructions.
+```
+
+After posting a DRAFT message, **immediately add 3 reactions**: ✅ then ✏️ then ❌
+
+Save to `data/ea-inbox/pending-drafts.json` with the Discord message ID for lookup.
+
+## Step 5 — Handle Approvals
+
+⚠️ **Hard gate rule:** Anything that leaves the building requires explicit approval. Any edit — even a single word — resets the gate. JC must see the updated version and approve again before sending.
+
+When JC reacts to or replies to a draft message:
+
+| Action | Result |
+|--------|--------|
+| **✅ reaction** or **`q`** | Send draft as-is (JC CC'd), mark sent |
+| **✏️ reaction** or **`a`** | Ask JC what to change → update draft → **post new version to Discord** → wait for fresh ✅ before sending. Do NOT send after ✏️ alone. |
+| **❌ reaction** or **`z`** | Discard, mark skipped |
+
+**The edit loop:**
+1. JC reacts ✏️ → ask \"What should I change?\"
+2. JC replies with edit → revise draft
+3. Post updated draft to Discord (new message with fresh ✅ ✏️ ❌ reactions)
+4. Only send after JC reacts ✅ to the NEW message
+
+Never send on the back of an edit without a fresh approval. No exceptions.
+
+After acting, reply with brief confirmation in Discord.
+
+## State Files
+
+| File | Purpose |
+|------|---------|
+| `data/ea-inbox/processed-emails.json` | `{\"id\": timestamp}` map of processed message IDs |
+| `data/ea-inbox/pending-drafts.json` | Drafts awaiting approval (with Discord msg IDs) |
+| `data/ea-inbox/scheduling-threads.json` | Active scheduling conversations and their state |
+
+Initialize any missing file as `{}` or `[]`.
+
+## Escalation Triggers
+
+Always escalate (never auto-handle):
+- Keywords: money, payment, contract, agreement, sign, term sheet, LOI, equity, legal
+- VIPs: General Atlantic, K Fund, ISAI, any fund partner
+- First-time contacts JC has never emailed
+- Anything involving Candosa fundraising or M&A
+- When in doubt — escalate
+", "find-a-guy": "---
+name: find-a-guy
+description: Find the best local service provider for any need — restaurant, laundry, dentist, hotel, trainer, events, anything. Inspired by Barney Stinson's \"I have a guy for everything.\" Use when JC needs to find, vet, or book any service. Triggers on phrases like \"find me a guy for\", \"find someone who\", \"I need someone to\", \"book me\", \"find me a\", or any request for a service provider in a specific city.
+---
+
+# Find A Guy
+
+JC needs a guy for everything. This skill finds, vets, and optionally contacts the best local provider for any service.
+
+## JC's Defaults
+- **Current base:** Miami Beach (update when he moves — London in May 2026)
+- **Preference:** Premium and reliable over cheapest
+- **Style:** Curated, specific, not generic lists
+
+## Workflow
+
+### 1. Identify the need
+Extract: service type, location (default: JC's current base), any special requirements.
+
+### 2. Search
+Use `web_search` with targeted queries:
+- `\"[service] Miami Beach 2026 best\"` 
+- `\"[service] Miami Beach luxury concierge\"`
+- `\"[service] near Miami Beach reviews\"`
+- Check Yelp, Google, and service-specific platforms (OpenTable for restaurants, ZocDoc for doctors, etc.)
+
+### 3. Vet the top 3
+For each candidate find:
+- **Name** and website
+- **Contact** (email preferred, phone fallback)
+- **Pricing** (range or specific)
+- **Rating** and notable reviews
+- **Availability** or lead time
+
+Fetch their website if needed to verify details. Mark contact info as verified or estimated.
+
+### 4. Present options
+Format:
+```
+🔍 **[Service] — Top 3 for [Location]**
+
+**1. [Name]** ⭐ [rating]
+- 📍 [area]
+- 💰 [pricing]
+- 📞 [contact]
+- ✅ [why this one]
+
+**2. [Name]** ⭐ [rating]
+...
+
+**3. [Name]** ⭐ [rating]
+...
+
+**My pick:** #1 because [reason]
+`q` reach out · `a` book now · `z` skip
+```
+
+### 5. Reach out (if requested)
+Send outreach email from `jclaw@candosa.com`:
+- Subject: `\"Inquiry: [Service] — Miami Beach\"`
+- Ask about: availability, rates, start date (this week preferred)
+- CC: `jc@candosa.com`
+- Save to `data/pending-drafts.json`
+
+## Service-Specific Tips
+
+See `references/service-types.md` for search strategies, platforms, and contact patterns by service category.
+
+## Quality Bar
+- Never suggest services with <4.0 ratings unless no alternatives exist
+- Always verify contact info is real (no placeholder emails)
+- If web search returns nothing useful, try fetching Yelp/Google directly
+- When in doubt, find a premium concierge service that can handle multiple categories
+", "five-whys": "---
+name: five-whys
+description: Run a structured root cause analysis using Toyota's Five Whys method. Use when a system fails repeatedly, a cron keeps timing out, a deal goes cold, a process keeps breaking, or after any significant failure. Overnight Ops calls this automatically for any P0 issue. Triggers on \"five whys\", \"root cause\", \"why did X fail\", \"post-mortem\", \"why does this keep happening\".
+---
+
+# Five Whys — Root Cause Analysis
+
+Forces actual root cause identification vs. just patching symptoms. Borrowed from Toyota's Production System. Adapted for JClaw ops.
+
+## When to Run
+- **Automatically:** Overnight Ops calls this for any issue that has appeared 2+ times in recent memory
+- **On demand:** JC says \"five whys on [issue]\", \"root cause\", \"post-mortem on [thing]\"
+- **After failures:** Cron consecutiveErrors > 2, skill failure rate > 30% over 7 days, same bug fixed twice
+
+## Process
+
+### Step 1 — Define the Problem
+State the failure in one crisp sentence. Be specific.
+- Bad: \"Gekko is broken\"
+- Good: \"Gekko cron timed out at 300s on 3 consecutive runs between April 1-3\"
+
+### Step 2 — Ask Why (5 times)
+For each answer, ask why again. Don't stop at the surface.
+
+Format:
+```
+Problem: [specific failure statement]
+
+Why 1: [first-level cause]
+Why 2: [why did that happen?]
+Why 3: [why did THAT happen?]
+Why 4: [why did THAT happen?]
+Why 5: [root cause — something actionable]
+```
+
+**Rules:**
+- Each \"why\" must be a real answer, not a restatement
+- Stop at 5 OR when you hit something you can actually fix
+- If a why branches (multiple causes), follow the most impactful branch
+- The root cause should be a system/process issue, not \"because it failed\"
+
+### Step 3 — Identify Fix
+From the root cause, derive one concrete fix:
+- Config change
+- Skill rewrite
+- New guardrail
+- Process change
+- Something to monitor
+
+### Step 4 — Write to Decision Log
+Log the analysis to `data/decisions.json`:
+```json
+{
+  \"type\": \"post-mortem\",
+  \"issue\": \"[problem statement]\",
+  \"root_cause\": \"[why 5]\",
+  \"fix\": \"[concrete action]\",
+  \"date\": \"[ISO date]\",
+  \"skill\": \"[affected skill if any]\",
+  \"recurrence_risk\": \"low|medium|high\"
+}
+```
+
+### Step 5 — Implement or Flag
+- If fix is something JClaw can do alone → do it immediately
+- If fix requires JC input → post to Discord #general with the analysis and ask
+
+## Output Format
+
+```
+🔍 **Five Whys — [ISSUE]**
+📅 [Date]
+
+**Problem:** [specific failure]
+
+**Why 1:** [cause]
+**Why 2:** [cause]
+**Why 3:** [cause]
+**Why 4:** [cause]
+**Why 5 (Root):** [root cause]
+
+**Fix:** [concrete action]
+**Risk of recurrence if unfixed:** [low/medium/high]
+
+[Status: Fixed ✅ | Flagged for JC ⚠️]
+```
+
+## Example
+
+```
+Problem: Gekko cron timed out at 300s on 3 consecutive runs (April 1-3)
+
+Why 1: The agent tried to do 5 web searches + 4 analysis layers + Discord post in one session
+Why 2: The skill was designed as a monolithic single-agent task
+Why 3: No timeout budget was allocated per step, so steps competed for the full 300s
+Why 4: When the skill was built, we didn't know agent turns had a ~300s practical ceiling
+Why 5 (Root): Skill architecture assumes unlimited time — no step-level budget, no graceful degradation
+
+Fix: Split Gekko into fetch job (data collection, 120s) + analysis job (synthesis + post, 180s). Each job is atomic and can succeed independently.
+Risk: High — will recur on any complex skill without step budgeting
+```
+
+## Integration with Overnight Ops
+
+Overnight Ops should call Five Whys automatically when:
+- `consecutiveErrors > 2` on any cron job
+- Same issue appears in 2+ consecutive dream logs
+- A skill has >30% failure rate in telemetry over 7 days
+
+Just invoke: \"Run five whys on: [issue description from audit]\"
+", "gekko": "# SKILL: GEKKO — Autonomous AI Trading Intelligence
+
+> *\"Greed, for lack of a better word, is good.\"* — Gordon Gekko
+
+**Source:** Rewritten from [atlas-gic](https://github.com/chrisworsey55/atlas-gic) (General Intelligence Capital)
+**Concept:** Karpathy's autoresearch + Soros reflexivity + Darwinian agent selection, applied to financial markets
+
+---
+
+## Trigger
+
+Use this skill when JC says:
+- \"run GEKKO\"
+- \"what does GEKKO think?\"
+- \"daily market brief\"
+- \"GEKKO report\"
+- \"market intelligence\"
+- \"GEKKO, what are you buying?\"
+- \"run the trading agents\"
+- \"GEKKO autoresearch\" (to trigger a prompt evolution cycle)
+
+---
+
+## Overview
+
+GEKKO is a 25-agent, 4-layer AI trading system where:
+- **The agent prompts are the weights** — no GPU, no training data
+- **Sharpe ratio is the loss function** — real market outcomes score every call
+- **Darwinian selection** — top agents get louder (weight ×1.05/day), bottom get quieter (×0.95/day)
+- **Autoresearch loop** — worst agent's prompt gets surgically modified weekly; kept if Sharpe improves, reverted if not
+
+Each run produces: regime signal → sector picks → superinvestor filters → sized trade decisions.
+
+---
+
+## Architecture: 4 Layers
+
+### Layer 1 — Macro (10 agents, run in parallel)
+Sets the regime: RISK_ON / RISK_OFF / NEUTRAL
+
+| Agent | Focus |
+|-------|-------|
+| Central Bank | Fed/ECB stance, rate trajectory |
+| Geopolitical | Conflict, sanctions, risk events |
+| China | PMI, property, stimulus |
+| Dollar | DXY, yield differentials |
+| Yield Curve | 2Y/10Y spread, recession probability |
+| Commodities | Oil, gold, copper signals |
+| Volatility | VIX, MOVE, credit spreads |
+| Emerging Markets | EM currencies, flows |
+| News Sentiment | Headlines, earnings call tone |
+| Institutional Flow | COT, 13F, fund flows |
+
+### Layer 2 — Sector Desks (7 agents, parallel)
+Identify best longs/shorts per sector given macro regime
+
+Semiconductor · Energy · Biotech · Consumer · Industrials · Financials · Relationship Mapper
+
+### Layer 3 — Superinvestors (4 agents, parallel)
+Filter ideas through proven investment philosophies
+
+| Agent | Style |
+|-------|-------|
+| Druckenmiller | Macro/momentum — big asymmetric bets |
+| Aschenbrenner | AI/compute — capex cycle beneficiaries |
+| Baker | Deep tech/biotech — IP moats |
+| Ackman | Quality compounders — FCF + pricing power + catalyst |
+
+### Layer 4 — Decision (4 agents, sequential)
+Final synthesis and execution
+
+| Agent | Role |
+|-------|------|
+| CRO | Adversarial — attacks every idea, finds correlated risks |
+| Alpha Discovery | Finds names nobody else mentioned |
+| Autonomous Execution | Converts signals to sized trades |
+| CIO | Final weighted synthesis → BUY/SELL/HOLD + sizing |
+
+---
+
+## Execution Flow
+
+```
+[GEKKO trigger received]
+         ↓
+1. Load agent scores from data/scores/darwinian_weights.json
+2. Fetch live macro data (web_search across key indicators)
+3. Spawn 10 Layer 1 macro subagents in parallel
+         ↓
+4. Aggregate → Regime signal (RISK_ON / RISK_OFF / NEUTRAL)
+5. Spawn 7 Layer 2 sector subagents in parallel
+         ↓
+6. Aggregate → Sector picks (long/short per sector)
+7. Spawn 4 Layer 3 superinvestor subagents in parallel
+         ↓
+8. Aggregate → Philosophy-filtered ideas
+9. Run Layer 4 sequentially: CRO → Alpha Discovery → Execution → CIO
+         ↓
+10. Save full output to data/history/YYYY-MM-DD.json
+11. Post formatted brief to Discord channel 1486200925277393027
+12. Update Darwinian weights (after scoring against prior day's outcomes)
+```
+
+**For efficiency:** Spawn one orchestrator subagent with `sessions_spawn`. It handles all 25 agents internally.
+
+---
+
+## Data Collection (web_search targets)
+
+Before running agents, gather:
+- **Macro:** Fed statement / rate decisions, VIX level, 10Y yield, DXY, oil price, gold price
+- **Flows:** Recent S&P sector ETF performance (SPY, QQQ, IWM, XLE, XLF, XLK, XLV, XBI)
+- **Sentiment:** Major overnight headlines, earnings surprises
+- **Earnings:** Upcoming catalysts in next 5 days
+
+Search queries to run (parallel):
+- `\"federal reserve\" interest rate decision today`
+- `VIX volatility index current level`
+- `10 year treasury yield today`
+- `DXY dollar index today`
+- `S&P 500 sector performance today`
+- `oil price crude today`
+- `market moving headlines today`
+
+---
+
+## Agent Prompts
+
+See `references/` directory for all agent system prompts:
+- `references/layer1-macro-prompts.md` — 10 macro agents
+- `references/layer2-sector-prompts.md` — 7 sector desk agents
+- `references/layer3-superinvestor-prompts.md` — 4 superinvestors
+- `references/layer4-decision-prompts.md` — CRO, Alpha, Execution, CIO
+
+---
+
+## Darwinian Weight System
+
+Weights stored in `data/scores/darwinian_weights.json`:
+
+```json
+{
+  \"agent_name\": {
+    \"weight\": 1.0,
+    \"sharpe_30d\": 0.0,
+    \"recommendations_tracked\": 0,
+    \"last_modified\": \"2026-03-24\"
+  }
+}
+```
+
+**Update rules (daily, after scoring):**
+- Top quartile performers: `weight = min(2.5, weight × 1.05)`
+- Bottom quartile performers: `weight = max(0.3, weight × 0.95)`
+- CIO weights each agent's signal proportionally
+
+**Effect:** High-weight agent (2.5) has 8× the influence of min-weight agent (0.3)
+
+---
+
+## Autoresearch Loop
+
+Triggered by \"GEKKO autoresearch\" or weekly via cron.
+
+1. Identify agent with lowest 30-day rolling Sharpe
+2. Feed that agent its last 5 days of recommendations + actual outcomes
+3. Ask Claude to generate ONE targeted prompt modification addressing the failure mode
+4. Save modified prompt to `references/evolved/`
+5. Run modified agent for 5 trading days
+6. Compare Sharpe: keep if improved, revert if not
+7. Log result to `data/history/autoresearch-log.json`
+
+**Modification prompt template:**
+> \"Here are [AGENT]'s last 5 days of recommendations and actual outcomes. The agent's Sharpe ratio is [X], which is the lowest in the system. Identify ONE specific pattern in what went wrong and propose a single targeted modification to the agent's system prompt that would address this failure mode. Be surgical — change one thing.\"
+
+---
+
+## Reflexivity Engine (Soros)
+
+After gathering agent views, check for crowded consensus:
+
+1. Count how many agents share the same bullish/bearish thesis on any ticker
+2. If 4+ agents agree → flag as potential reflexive extreme
+3. Calculate reversal probability: `consensus_count / total_agents × base_reversal_rate`
+4. CRO receives this flag; reduces conviction on crowded trades
+
+**Feedback loops to model:**
+- Price move >15% down → credit conditions tighten, talent flight risk
+- Price move >20% up → cheap capital, customer confidence boost
+- 3+ analyst convergence → retail flow follows (narrative → flows)
+- Equity drawdown >15% → policy response probability increases
+
+---
+
+## JANUS Meta-Layer
+
+For advanced mode (two cohorts: short-window 18-month vs long-window 5-year):
+
+- Blend recommendations from both cohorts weighted by recent accuracy
+- Weight differential = emergent regime detector:
+  - Short-window outperforming → **NOVEL REGIME** (recent patterns matter more)
+  - Long-window outperforming → **HISTORICAL REGIME** (classic patterns hold)
+  - Equal → **MIXED**
+
+JANUS logic lives in `scripts/janus.py` (adapted from source).
+
+---
+
+## Output Format
+
+Post to Discord channel **1486200925277393027**:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📊 **GEKKO DAILY BRIEF** · [DATE]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+**REGIME:** 🟢 RISK_ON / 🔴 RISK_OFF / 🟡 NEUTRAL
+
+**MACRO SIGNALS**
+• [Key macro driver 1]
+• [Key macro driver 2]
+
+**TOP LONGS** (conviction-weighted)
+1. XXXX — [thesis, conviction %]
+2. YYYY — [thesis, conviction %]
+
+**TOP SHORTS**
+1. ZZZZ — [thesis, conviction %]
+
+**CIO DECISION**
+[Final portfolio action with sizing rationale]
+
+**⚠️ CROWDED TRADES (Reflexivity Flag)**
+[Any consensus warnings]
+
+**AGENT SCORES** (top/bottom)
+🥇 [Agent] · weight 2.5
+⚠️ [Agent] · weight 0.3
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## Data Files
+
+```
+skills/gekko/
+├── SKILL.md                          ← this file
+├── references/
+│   ├── layer1-macro-prompts.md       ← system prompts for 10 macro agents
+│   ├── layer2-sector-prompts.md      ← system prompts for 7 sector agents
+│   ├── layer3-superinvestor-prompts.md ← Druckenmiller, Ackman, etc.
+│   ├── layer4-decision-prompts.md    ← CRO, Alpha, Execution, CIO
+│   └── evolved/                      ← autoresearch-modified prompts
+├── scripts/
+│   └── janus.py                      ← JANUS meta-layer (adapted)
+├── data/
+│   ├── scores/
+│   │   └── darwinian_weights.json    ← live agent weights
+│   ├── state/
+│   │   ├── macro_regime.json         ← Layer 1 output
+│   │   ├── sector_picks.json         ← Layer 2 output
+│   │   ├── superinvestor_views.json  ← Layer 3 output
+│   │   └── portfolio_actions.json    ← Layer 4 output
+│   └── history/
+│       ├── YYYY-MM-DD.json           ← daily run archives
+│       └── autoresearch-log.json     ← evolution log
+```
+
+---
+
+## Spawning Instructions
+
+When triggered, spawn a single orchestrator subagent:
+
+```
+sessions_spawn(
+  task=\"Run GEKKO daily trading intelligence cycle. Read the SKILL.md at ~/.openclaw/workspace/skills/gekko/SKILL.md for full instructions. Gather live market data, run all 4 layers in sequence, and post the formatted brief to Discord channel 1486200925277393027.\",
+  mode=\"run\",
+  runTimeoutSeconds=300
+)
+```
+
+---
+
+## Key Lessons from Backtest (18 months, 378 trading days)
+
+- Autoresearch works: 30% of modifications kept, Sharpe improved measurably
+- **Convergent evolution:** All cohorts independently discovered the same rules — cap conviction during uncertainty, use VIX as regime filter, never override risk management
+- **The CIO is the bottleneck**, not signal generation — good signals need active management rules to translate to returns
+- Agent spawning is real: system autonomously created 9 new agents when it detected recurring knowledge gaps; 6 survived Darwinian selection
+- Crashes move too fast for the feedback loop — agents need pre-trained crisis instincts, not reactive ones
+- **Best pick (from framework):** AVGO at $152 → +128%
+
+---
+
+## Paper Portfolio Update — Daily Cron Step
+
+**Run this every day as part of the daily GEKKO cycle (after positions section).**
+
+This step updates the paper trading proof system and regenerates the dashboard.
+
+### Step 1: Look Up Current Prices
+
+Use `web_search` to get current prices for all open positions:
+
+```
+web_search(\"LMT stock price today\")
+web_search(\"RTX stock price today\")
+web_search(\"LNG Cheniere stock price today\")
+web_search(\"VRTX stock price today\")
+web_search(\"NVDA stock price today\")
+web_search(\"UAL United Airlines stock price today\")
+web_search(\"S&P 500 SPX closing price today\")
+```
+
+Run all queries in parallel (separate subagents or sequential web_search calls).
+
+### Step 2: Calculate Daily P&L
+
+For each position:
+- **LONG:** `daily_pnl_per_share = current_price - prior_close`
+- **SHORT:** `daily_pnl_per_share = prior_close - current_price`
+- `position_pnl = daily_pnl_per_share × shares`
+- `total_portfolio_pnl = sum of all position_pnls`
+- `new_equity = prior_equity + total_portfolio_pnl`
+
+Win/loss: position is winning if current P&L vs entry is positive.
+- **Win rate** = (winning positions) / (total positions)
+
+### Step 3: Update paper_portfolio.json
+
+Append a new entry to `equity_history` in `data/paper_portfolio.json`:
+
+```json
+{
+  \"date\": \"YYYY-MM-DD\",
+  \"equity\": <new_equity>,
+  \"daily_pnl\": <total_portfolio_pnl>,
+  \"daily_return_pct\": <daily_pnl / prior_equity * 100>,
+  \"cash\": 29850.00,
+  \"positions_value\": <sum of position values>,
+  \"benchmark_spx\": <spx_close_today>,
+  \"note\": \"<brief summary of what happened>\"
+}
+```
+
+Also update `summary` fields: `current_equity`, `total_return_pct`, `total_pnl`, `benchmark_return_pct`, `alpha_vs_benchmark`.
+
+### Step 4: Check Stop Losses
+
+For each position, check if stop loss was triggered:
+- **LONG stop loss:** `current_price < entry_price × 0.92` (−8%)
+- **SHORT stop loss:** `current_price > entry_price × 1.08` (+8%)
+
+If triggered:
+1. Add `\"status\": \"CLOSED_STOP_LOSS\"` to that position
+2. Log the incident
+3. Increment `stop_loss_violations` in summary
+4. Post a Discord alert to channel **1486200925277393027**
+
+### Step 5: Update Dashboard HTML
+
+Update the `PORTFOLIO_DATA` JavaScript constant in the dashboard HTML at:
+`/Users/glancy/.openclaw/workspace/apps/gekko-dashboard/index.html`
+
+Replace the `equity_history` array with the updated data.
+Replace all `metrics` values with fresh calculations:
+- `total_return_pct`: `(current_equity - 50000) / 50000 * 100`
+- `sharpe`: Annualized Sharpe = `mean_daily_return / std_daily_return * sqrt(252)` (if ≥3 days data)
+- `max_drawdown_pct`: Maximum peak-to-trough drawdown since inception
+- `win_rate`: Winning positions / total positions
+- `alpha_vs_spx_pct`: `total_return_pct - benchmark_return_pct`
+- `trading_days`: Days since inception with equity history entries
+
+Update `go_live_criteria` met/current fields based on fresh metrics.
+
+Update position `current` prices.
+
+### Step 6: Push to GitHub
+
+```bash
+cd /Users/glancy/.openclaw/workspace/apps/gekko-dashboard
+git add -A
+git commit -m \"chore: daily paper portfolio update $(date +%Y-%m-%d) — equity $NEW_EQUITY\"
+git push
+```
+
+### Step 7: Post Summary to Discord
+
+Post to channel **1486200925277393027**:
+
+```
+📊 **GEKKO PAPER PORTFOLIO UPDATE** · [DATE]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💰 Equity: $[X] ([+/-]$[pnl] today)
+📈 Total Return: [X]% vs SPX [X]%
+📊 Sharpe: [X] (target: ≥1.5)
+🎯 Win Rate: [X]% · [X]/[X] positions
+
+**Open Positions:**
+[ticker] [dir] — [P&L$] ([P&L%]) · Stop: $[stop]
+...
+
+⏱ Day [N]/90 toward go-live threshold.
+🔗 Dashboard: https://jcg8802.github.io/gekko-dashboard/
+```
+
+---
+
+## Notes
+
+- **No trained prompts are included** — the prompts in `references/` are starting points. The evolved prompts are the core IP.
+- Run daily via cron at 06:00 ET (before market open)
+- Data providers to integrate: FMP, Finnhub, Polygon, FRED (or use web_search as free substitute)
+- Cost per full run with Claude Sonnet: ~$0.50–$2.00 depending on data volume
+", "investor-intelligence": "---
+name: investor-intelligence
+description: Research and map VC/investor contacts from Gmail history into a scored, ranked Google Sheet. Use when JC asks to find investors, build an investor list, run a fundraising contact sweep, identify VCs in his network, or prepare for a capital raise. Also use to update or refresh the existing VC intelligence sheet.
+---
+
+# Investor Intelligence
+
+Systematically identify, research, and score every VC/investor in JC's network, then output a ranked Google Sheet sorted by relevance to the current deal.
+
+## Workflow
+
+### 1. Extract contacts
+Read `/Users/glancy/.openclaw/workspace/data/all_contacts.json` — 1,501 unique contacts from full Gmail history.
+
+### 2. Identify investors
+Scan all contacts for signals:
+- **Titles:** Partner, Managing Director, General Partner, Principal, Associate, Analyst (at a fund)
+- **Orgs:** VC, Capital, Ventures, Fund, Invest, Partners, Holdings, Family Office, Accelerator, Incubator, PE, Growth Equity
+- **Angels:** individual investors, operators with \"Angel\" in bio
+- Cast wide — better to over-include and score low than miss someone
+
+### 3. Augment via Gmail
+Use `gog` skill to search Gmail all-time for additional investor signals:
+```
+gog gmail search \"investor OR fund OR portfolio OR term sheet OR due diligence OR raise OR pitch OR LP OR GP\" --account jclaw@candosa.com --max 50
+gog gmail search \"investor OR fund OR portfolio OR raise OR pitch\" --account jc@candosa.com --max 50
+```
+Extract any contacts not already in the JSON.
+
+### 4. Research each contact
+For every identified investor, web-search to find:
+- Fund name, AUM, HQ location
+- Investment stage (pre-seed / seed / Series A / B / growth / PE / buyout)
+- Focus industries and geographies
+- 3–5 notable portfolio companies or recent investments
+- Website, LinkedIn
+
+Mark fields as `Research needed` if not publicly available — do not skip contacts.
+
+### 5. Score relevance to Candosa
+Score 1–10 based on fit with current deal context (see references/candosa-context.md):
+- **10:** European SMB, AI-native services, Spain/France/UK, growth equity/PE stage, existing relationship
+- **7–9:** Adjacent fit (broader Europe, B2B SaaS, fintech, compliance tech)
+- **4–6:** US-focused or wrong stage but worth knowing
+- **1–3:** No clear fit, include for completeness
+
+### 6. Populate Google Sheet
+Target sheet: `https://docs.google.com/spreadsheets/d/1-Ih40EYuv0pbEc3Xs1lRp1BtaWCosT6O-aRENERjVh8/edit`
+
+Use `gog` skill with Sheets API. Columns (in order):
+`Name | Title | Fund/Firm | AUM | Stage | Geography | Industries | Portfolio Companies | Email | Interaction Count | Last Contact Date | Notes | Relevance to Candosa (1-10)`
+
+Sort by Relevance descending, then Interaction Count descending.
+
+### 7. Report to Discord
+When done, post summary to `#exec-log` (channel `1483351721919909938`):
+- Total contacts scanned
+- Investors identified
+- Top 5 by relevance score
+- Sheet link
+
+## Output format — do NOT use message tool
+Output summary text only. Cron delivery handles Discord posting.
+
+## Reference files
+- `references/candosa-context.md` — deal context, scoring criteria, VIP list
+", "investor-psychographic": "---
+name: investor-psychographic
+description: Deep research and psychographic analysis of a VC partner or investor — how they think, what drives their decisions, what they look for in founders and companies, and how to pitch them effectively. Use when asked to research an investor, profile a VC, prepare for a fundraising meeting, build a psychographic profile, understand an investor's decision-making style, or figure out what matters to a specific partner at a fund. Triggers on phrases like \"research [investor name]\", \"psychographic analysis\", \"how does [investor] think\", \"what does [investor] look for\", \"prepare me for a meeting with [investor]\", \"investor profile\", \"VC deep dive\".
+---
+
+# Investor Psychographic Analysis
+
+## Overview
+
+Produce a comprehensive psychographic profile of a specific investor: who they are, how they think, what patterns drive their decisions, and how to pitch them. Output is tactical and opinionated — not a Wikipedia bio.
+
+## Process
+
+### 1. Research (parallel)
+
+Read `references/research-sources.md` for the full search strategy and source quality ranking.
+
+Run parallel web searches to gather:
+- Firm bio page + portfolio data
+- Long-form interviews (highest priority — fetch and read full text of 2-3)
+- Recent deal activity and thesis evolution
+- Conference talks, podcast transcripts, blog posts
+
+**Minimum bar:** 2+ long-form interviews fully read, complete portfolio list, at least 1 recent source, direct quotes on founder selection criteria, and personal backstory.
+
+### 2. Analyze
+
+Extract psychographic dimensions from the research:
+
+- **Decision-making framework** — How do they evaluate? People-first vs. thesis-first vs. data-first? What's their mental model?
+- **Founder archetype preference** — What traits do they explicitly and implicitly select for? What disqualifies?
+- **Market evaluation lens** — TAM-first or engagement-first? How do they think about timing and sizing?
+- **GTM / distribution bias** — PLG, enterprise sales, hybrid? Shaped by operator experience?
+- **Moat thinking** — What kind of defensibility do they value? Data, distribution, network, brand?
+- **Current thematic conviction** — What are they actively betting on right now?
+- **Board style** — Hands-on vs. hands-off? How does it change by stage?
+- **Intellectual identity** — Academic background, self-awareness, contrarian streaks, known biases
+
+**Pattern-match the portfolio.** The stated thesis and the revealed preference (what they actually invest in) sometimes diverge. Note both.
+
+**Connect biography to behavior.** Origin story, career pivots, formative experiences → how these shape their investment lens. This is the core of psychographic analysis — not just WHAT they do but WHY.
+
+### 3. Write the Profile
+
+Read `references/output-template.md` for the full deliverable structure.
+
+Key principles:
+- **Lead with insight, not biography.** The profile should feel like intelligence, not a LinkedIn summary.
+- **Use direct quotes liberally.** Their own words reveal more than paraphrasing.
+- **Be opinionated in the \"How to Pitch\" section.** Concrete, tactical advice — not generic \"show traction.\"
+- **Flag gaps honestly.** If data is thin on a dimension, say so rather than speculating.
+- **Platform formatting:** On Discord/WhatsApp, use bullet lists not markdown tables. Wrap links in `<>` on Discord.
+
+### 4. Deliver
+
+Post the full profile. If delivering to Discord and the message would exceed limits, split into 2-3 sequential messages with clear section breaks.
+", "local-service-sourcing": "---
+name: local-service-sourcing
+description: Find, evaluate, and contact local service providers for JC's personal needs — laundry, cleaning, personal assistant, driver, chef, handyman, etc. Use when JC asks to find a local service, get quotes, or reach out to providers in any of his home cities (Miami Beach, Madrid, London, Cleveland). Handles research, comparison, outreach, and reporting back.
+---
+
+# Local Service Sourcing
+
+Find the best local service providers, get quotes, reach out on JC's behalf, and report back with a ranked summary.
+
+## JC's Cities
+- **Miami Beach, FL** — primary US base
+- **Madrid, Spain** — primary Europe base
+- **London, UK** — secondary Europe
+- **Cleveland, OH** — family base
+
+## Workflow
+
+### 1. Search
+Run 2–3 targeted web searches to find providers. Tailor query to city + service:
+```
+\"[service type] Miami Beach\" site:yelp.com OR site:thumbtack.com OR site:taskrabbit.com
+\"[service type] Miami Beach\" reviews pricing
+\"personal assistant [service type] Miami Beach\" hire
+```
+Also check: Google Maps, Nextdoor mentions, Yelp, TaskRabbit, Thumbtack, Care.com, local Facebook groups.
+
+### 2. Evaluate top candidates
+For each candidate, find:
+- Business/person name
+- Contact info (email, phone, website, social)
+- Reviews / ratings (source + score)
+- Pricing or rate (if publicly listed)
+- Location / service area (confirm they cover JC's neighborhood)
+- Years in business / notable credentials
+
+Aim for **top 3–5 candidates** — ranked by: reviews > proximity > pricing.
+
+### 3. Draft outreach
+Write a brief, professional inquiry email from JC. Tone: friendly, direct, no fluff.
+
+Template:
+```
+Subject: [Service] inquiry — availability + pricing
+
+Hi [Name],
+
+I'm looking for [service description] on a [frequency] basis in [neighborhood/city].
+
+Could you share:
+- Your availability starting [timeframe]
+- Pricing / rates
+- Any relevant details about your service
+
+Happy to do a quick call if easier.
+
+Thanks,
+JC
+```
+
+Adjust for service type. For laundry/cleaning: mention approximate load size or sq footage. For PA: mention tasks and hours needed.
+
+### 4. Send outreach
+If email address found → use `gog gmail send` from `jclaw@candosa.com` to reach out.
+If only phone/form → note it in the report for JC to follow up manually.
+
+```bash
+gog gmail send --account jclaw@candosa.com --to \"[email]\" --subject \"[subject]\" --body \"[body]\"
+```
+
+Log each outreach attempt.
+
+### 5. Report to JC
+Post summary to `#exec-log` (Discord channel `1483351721919909938`) with:
+- Top 3 providers: name, rating, price range, contact info
+- Outreach status: sent / manual follow-up needed
+- Recommended pick (if one stands out)
+
+Format as a clean bullet list — no markdown tables (Discord).
+
+## Tips
+- Miami Beach: focus on South Beach, Mid-Beach, North Beach zip codes (33139, 33140, 33141)
+- Madrid: focus on Salamanca, Retiro, Chamberí neighborhoods
+- For recurring services (laundry, cleaning): ask about weekly/monthly packages
+- For personal assistants: clarify in-person vs. remote, hours per week, tasks included
+- Prefer providers with 4.5+ star ratings and 20+ reviews
+- Always get at least 3 quotes before recommending
+", "overnight-ops": "---
+name: overnight-ops
+description: Audit all open loose ends, broken systems, and improvement opportunities across JClaw, then autonomously fix everything possible overnight. Use when JC says \"run overnight ops\", \"fix everything\", \"audit loose ends\", \"what's broken\", \"build while I sleep\", or at end of day to surface and resolve all pending issues. Also triggers on \"loose ends\", \"what did I miss\", \"cleanup\", \"overnight build\".
+---
+
+# Overnight Ops
+
+End-of-day audit + autonomous overnight fix cycle. Two phases: **Audit** (surface everything) then **Build** (fix everything possible).
+
+## Phase 1 — Audit
+
+Scan all systems and surface loose ends in these categories:
+
+### 1. Cron Health
+- `cron(action=list, includeDisabled=false)` — check all active jobs
+- Flag: consecutiveErrors > 0, lastRunStatus = \"error\", timeout patterns
+- For each broken job: diagnose root cause from error message
+
+### 2. Config Drift
+- Check model config (prefix warnings, fallback chain)
+- Check tunnel URL sync (compare cloudflared log vs Twilio vs config)
+- Check plugin status (voice-call, iMessage, etc.)
+- Check API key health (test endpoints if possible)
+
+### 3. Unfinished Tasks
+- Read today's `memory/YYYY-MM-DD.md` for tasks started but not completed
+- Read recent Discord messages in #general for unanswered requests
+- Check `data/pending-drafts.json` for unsent drafts
+
+### 4. Missing Permissions / Auth
+- List services that need auth: `gog auth list --json`
+- Flag any accounts mentioned in MEMORY.md that aren't connected
+
+### 5. Skill Gaps
+- Review today's conversation for multi-step processes done manually
+- Flag any process done 2+ times that should be a skill
+- Check `skills/` directory for outdated or broken skills
+
+### 6. Infrastructure
+- Check disk space, tunnel status, gateway uptime
+- Verify GitHub backup is current: `cd workspace && git status`
+
+## Phase 2 — Build
+
+For each issue found, classify:
+
+| Priority | Action | Example |
+|----------|--------|---------|
+| 🔴 P0 | Fix immediately | Broken cron, config error, auth failure |
+| 🟡 P1 | Fix overnight (spawn subagent) | Rewrite timeout job, create missing skill |
+| 🟢 P2 | Log for JC approval | Needs API key, permission, or external action |
+| ⚪ P3 | Note for future | Nice-to-have, low impact |
+
+### Build Rules
+- **P0 fixes**: Do inline, no subagent needed
+- **P1 fixes**: Spawn parallel subagents, one per fix. Use `sessions_spawn(mode=\"run\")`.
+- **P2 items**: Compile into a single Discord message for JC
+- **P3 items**: Append to `memory/improvement-backlog.md`
+- **Never**: Delete data, send external emails, modify API keys without JC
+
+### Build Checklist (common fixes)
+- Rewrite timing-out cron jobs with simpler payloads
+- Fix model prefix warnings in config
+- Sync tunnel URL if drifted
+- Create skills from repeated manual processes
+- Update MEMORY.md with new learnings
+- Update agents-roster.md if agents changed
+- Commit and push all changes to GitHub
+
+## Output
+
+### During Audit
+Post to Discord #general:
+
+```
+🔍 **Overnight Ops — Audit Complete**
+📅 [Date]
+
+🔴 **P0 — Fixing Now** ([count])
+• [issue] — [fix]
+
+🟡 **P1 — Building Overnight** ([count])  
+• [issue] — [what subagent will do]
+
+🟢 **P2 — Needs JC** ([count])
+• [issue] — [what JC needs to do]
+
+⚪ **P3 — Backlog** ([count])
+• [issue]
+
+ETA: [estimated completion time]
+```
+
+### After Build
+Post to Discord #general:
+
+```
+🏗️ **Overnight Ops — Build Complete**
+📅 [Date] · [duration]
+
+✅ Fixed: [count]
+• [what was fixed]
+
+⏳ Pending JC: [count]  
+• [what needs JC]
+
+📝 Backlogged: [count]
+```
+
+## References
+- See `references/known-issues.md` for recurring problems and their fixes
+- See `references/fix-patterns.md` for common fix templates
+", "paid-traffic": "---
+name: paid-traffic
+description: Paid traffic agent for Candosa — monitors Google Ads and Meta Ads performance, tracks ROAS/CAC, reports weekly, and alerts on anomalies. Connects to candosa.com Google Ads account.
+triggers:
+  - \"run paid traffic report\"
+  - \"how are the ads performing\"
+  - \"check ROAS\"
+  - \"check CAC\"
+  - \"paid traffic update\"
+  - \"Google Ads report\"
+  - \"ad spend\"
+  - cron (weekly Monday 8 AM, daily anomaly check)
+---
+
+# Paid Traffic Agent — Head of Performance
+
+## Role
+Autonomous performance marketing agent for Candosa. Monitors Google Ads (and Meta Ads when connected), tracks real ROAS and CAC, surfaces anomalies, and delivers actionable weekly reports to Discord.
+
+## Accounts
+- **Google Ads:** candosa.com account (Customer ID in `~/.openclaw/workspace/skills/paid-traffic/config.yaml`)
+- **Meta Ads:** TBD (connect via Meta Business API when ready)
+
+## Config File
+Location: `~/.openclaw/workspace/skills/paid-traffic/config.yaml`
+
+```yaml
+google_ads:
+  developer_token: \"YOUR_DEVELOPER_TOKEN\"
+  customer_id: \"YOUR_CUSTOMER_ID\"  # 10-digit, no dashes: e.g. 1234567890
+  login_customer_id: \"YOUR_MANAGER_ACCOUNT_ID\"  # if using MCC/manager account
+  oauth_credentials: \"jc@candosa.com\"  # reuses gog OAuth token
+
+salary_overhead:
+  # Used for real CAC calculation (ad spend + people cost)
+  monthly_salary_total_eur: 3500  # total sales team monthly cost
+  monthly_commissions_eur: 0      # variable — update monthly
+
+reporting:
+  discord_channel: \"1486305438386622586\"  # #marketing-hub
+  alert_channel: \"1486305438386622586\"
+  weekly_day: \"monday\"
+  weekly_time: \"08:00\"
+  timezone: \"Europe/Madrid\"
+```
+
+## Reporting Scripts
+Location: `~/.openclaw/workspace/skills/paid-traffic/scripts/`
+
+- `google_ads_report.py` — pulls campaign performance data
+- `calculate_real_cac.py` — computes real CAC with salary overhead
+- `anomaly_check.py` — daily spend/ROAS anomaly detection
+
+## Weekly Report (Mondays 8 AM Madrid)
+
+Run: `python3 ~/.openclaw/workspace/skills/paid-traffic/scripts/google_ads_report.py --period last_7_days`
+
+Post to Discord `#📣-marketing-hub`:
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+📣 PAID TRAFFIC WEEKLY — [date range]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+💰 Spend:       €[X]
+📊 ROAS:        [X.XX]
+📥 Leads:       [X]
+📞 Live calls:  [X] (est. ~70% of leads)
+💵 CAC (ads):   €[X]
+💵 CAC (real):  €[X] (incl. salaries/commissions)
+⏱ Avg close:   [X] days
+
+Top campaigns:
+• [Campaign 1] — €[spend] | ROAS [X] | [X] leads
+• [Campaign 2] — €[spend] | ROAS [X] | [X] leads
+
+⚠️ Flags: [any issues — budget pacing, creative fatigue, etc.]
+
+Next actions: [1–2 recommended changes]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+## Daily Anomaly Check (9 AM Madrid)
+
+Run: `python3 ~/.openclaw/workspace/skills/paid-traffic/scripts/anomaly_check.py`
+
+Alert to Discord if any of:
+- Daily spend >150% of 7-day average
+- ROAS drops >25% vs prior 7 days
+- Zero conversions for 24h on an active campaign
+- Campaign budget exhausted before 6 PM Madrid time
+
+## Real CAC Formula
+
+```
+Real CAC = (Ad Spend + Monthly Salaries + Commissions + Overhead) / New Customers Acquired
+```
+
+Note: Dashboard currently only shows ad-spend CAC (~€188). Real CAC is estimated 2–3x higher.
+Track separately and report both numbers weekly.
+
+## Key Metrics to Track
+
+| Metric | Current | Target |
+|---|---|---|
+| Weekly bookings | 89 (first week Mar) | 100+ |
+| Live calls / bookings | 61/89 = 68% | 75% |
+| ROAS | 2.10 | 3.0+ |
+| CAC (ad spend only) | €188 | <€150 |
+| CAC (real, incl. overhead) | TBD | <€300 |
+| Time to close | TBD | <7 days |
+
+## Context: Dashboard Gap
+⚠️ The current Sol CRM → Dashboard pipeline only captures campaign leads.
+Jesús and Alejandro's manual/word-of-mouth sales are NOT reflected.
+Estimated real revenue is ~2x what the dashboard shows.
+**Do not use dashboard numbers alone for CAC or ROAS decisions.**
+
+## Instagram Lead Monitoring
+When Meta Ads is connected:
+- Check Instagram DM leads daily
+- Flag any leads unanswered >4 hours during business hours (9 AM–7 PM Madrid)
+- Post alert to Discord: \"⚠️ X Instagram leads unanswered — oldest: [X] hours\"
+
+## Fixcal Database
+- 50K self-employed contacts available for cold outreach
+- Location: coordinate with triager role / cold caller
+- Do NOT blast without segmentation — qualify by epígrafe/sector first
+
+## Setup Instructions (One-Time)
+
+### 1. Get Google Ads Developer Token
+1. Go to https://ads.google.com → Tools → API Center
+2. Apply for a developer token (basic access is free)
+3. Paste token into `config.yaml`
+
+### 2. Get Customer ID
+- Open Google Ads → top right corner → 10-digit account number (e.g. 123-456-7890)
+- Remove dashes, paste into `config.yaml` as `customer_id`
+
+### 3. OAuth (already done via gog)
+- jc@candosa.com is already authenticated
+- Run: `python3 scripts/setup_oauth.py` to extract token for google-ads library
+
+### 4. Test connection
+```bash
+python3 ~/.openclaw/workspace/skills/paid-traffic/scripts/google_ads_report.py --test
+```
+
+## Cron Jobs
+
+Two cron jobs to create:
+1. **Weekly report** — Monday 8 AM Europe/Madrid
+2. **Daily anomaly check** — Every day 9 AM Europe/Madrid
+", "synthesis": "# Synthesis — World State Skill
+
+## Purpose
+Daily cross-agent synthesis. Dynamically discover every active channel, pull signals, connect the dots, and produce one unified \"world state\" — both a Discord post AND a structured JSON file that every other agent reads as shared context.
+
+This is the organizational memory layer. Every agent that runs has attended every meeting because they read this first.
+
+## Trigger
+- Daily cron at 9:00 AM ET (after morning brief)
+- On demand: \"run synthesis\", \"world state\", \"what's the big picture\", \"synthesize\"
+
+## Output
+1. Discord post → `1487119283703119884` (#synthesis)
+2. Structured file → `/Users/glancy/.openclaw/workspace/data/world-state.json`
+3. Plaintext summary → `/Users/glancy/.openclaw/workspace/data/world-state.md`
+
+---
+
+## Step 1 — Dynamic Channel Discovery
+
+**Do NOT use a hardcoded channel list.** Discover channels dynamically every run.
+
+Call `message` tool: `action=channel-list`, `guildId=1483310564213129297`
+
+**Include:** text channels (type=0) that have a `last_message_id` (i.e., have ever had messages)
+
+**Exclude these channel IDs permanently:**
+- `1483310564213129300` — #general-jclaw (command channel, not signal)
+- `1487119283703119884` — #synthesis (don't read your own output)
+- `1484269303057350811` — #ops-log (meta)
+- `1483351721919909938` — #exec-log (meta)
+
+**Exclude channel types:** voice (type=2), categories (type=4)
+
+This means every new project channel, new intelligence feed, or new skill output channel is automatically included the next time synthesis runs — zero manual updates needed.
+
+---
+
+## Step 2 — Pull Signals (parallel)
+
+For each discovered channel:
+- Read last **5 messages**
+- **Discard any message older than 7 days** — hard cutoff, no exceptions
+- Track: channel name, most recent message timestamp, age in days
+
+If a channel has zero messages within 7 days → mark as stale, skip silently.
+
+---
+
+## Step 3 — Check Calendar
+
+From the morning-brief channel, extract any calendar events happening **TODAY**.
+If JC has a meeting, investor call, or deadline today → anchor \"The One Thing\" to it.
+
+---
+
+## Step 4 — Detect Convergence
+
+Scan all signals for **themes appearing in 3+ channels independently**.
+Examples: \"EU compliance\", \"General Atlantic fundraise\", \"Candosa ROAS\", \"ZenBusiness\", \"acquisition pipeline\"
+
+If a theme converges → flag as CONVERGENCE SIGNAL. This is the highest-priority insight in the report.
+
+---
+
+## Step 5 — Synthesize
+
+**Always frame \"The One Thing\" through JC's top 3 goals:**
+1. $100–150M GA fundraise (General Atlantic round)
+2. Candosa growth (ROAS, CAC, revenue, marketing performance)
+3. M&A pipeline (European SMB acquisitions)
+
+**Flag 🔴 URGENT if any signal involves:**
+- Action required today (call in a few hours, deadline today, stop-loss imminent)
+- Time window closing within 48h
+- Something overdue by >7 days
+
+---
+
+## Step 6 — Post to #synthesis
+
+```
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+🧠 WORLD STATE — [Day, Date]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+[ONLY if urgent items exist:]
+🔴 URGENT
+• [Time-sensitive action required TODAY — specific person, action, deadline]
+
+[ONLY if 3+ channels share a theme:]
+🔁 CONVERGENCE SIGNAL
+• [Theme] — seen across [channel A], [channel B], [channel C]. Amplified priority.
+
+📈 WHAT'S MOVING
+• [Signal] (Xd ago)
+• [Signal] (Xd ago)
+
+⚠️ THREATS & RISKS
+• [Signal] (Xd ago)
+• [Signal] (Xd ago)
+
+💡 OPPORTUNITIES
+• [Signal] (Xd ago)
+• [Signal] (Xd ago)
+
+🎯 THE ONE THING
+[Single action tied to GA fundraise / Candosa growth / M&A.
+If JC has a relevant calendar event today, anchor to it.
+Name the person, the action, the deadline. Be specific.]
+
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+Sources: [channel emoji + name + age, e.g. \"💸 Gekko (today) · 👁 Competitor Watch (3d ago)\"]
+Stale/skipped: [list any channels with no fresh data]
+```
+
+After posting, add a 🧠 reaction to the message.
+
+---
+
+## Step 7 — Write world-state.json
+
+Write to `/Users/glancy/.openclaw/workspace/data/world-state.json`:
+
+```json
+{
+  \"generated_at\": \"<ISO 8601 timestamp>\",
+  \"date\": \"<YYYY-MM-DD>\",
+  \"urgent\": [\"<item>\"],
+  \"convergence_signals\": [\"<theme>\"],
+  \"whats_moving\": [\"<bullet>\"],
+  \"threats_risks\": [\"<bullet>\"],
+  \"opportunities\": [\"<bullet>\"],
+  \"the_one_thing\": \"<string>\",
+  \"top_priorities\": {
+    \"fundraise\": \"<current status/signal — one line>\",
+    \"candosa_growth\": \"<current status/signal — one line>\",
+    \"ma_pipeline\": \"<current status/signal — one line>\"
+  },
+  \"sources_used\": [
+    { \"channel\": \"<channel-name>\", \"age_days\": 0 }
+  ],
+  \"sources_stale\": [\"<channel-name>\"]
+}
+```
+
+Also write a plaintext summary to `/Users/glancy/.openclaw/workspace/data/world-state.md` — same content as the Discord post, plain text, no Discord-specific formatting.
+
+---
+
+## Rules
+- **Dynamic discovery every run** — never hardcode channels. New channels appear automatically.
+- **7-day recency is a hard cutoff** — stale signals are worse than no signals.
+- **Convergence is the headline** — multiple channels pointing at the same thing = most important signal.
+- **The One Thing must connect to the top 3 goals** — not a floating market observation.
+- **URGENT is above the fold** — if something needs action today, it's first.
+- **Show source age** — every bullet traces to a channel + approximate age `(Xd ago)` or `(today)`.
+- **Never hallucinate** — only synthesize what's actually in the channels.
+- **Always write world-state.json** — even on sparse days. Other agents depend on it.
+- **Partial synthesis is fine** — post even if only 2–3 channels have fresh data.
+- **If everything stale** — post: \"No fresh signals this week — all channels quiet.\" Still write the JSON with empty arrays.
+", "telemetry": "---
+name: telemetry
+description: Log every JClaw skill invocation silently to data/skill-telemetry.json. Use at the start of any skill run to track which skills are being used, how often, and what triggered them. Also produces weekly usage reports. Triggers on: any skill invocation (called internally), \"skill usage report\", \"what skills am I using\", \"telemetry report\".
+---
+
+# Skill Telemetry
+
+Silent logging layer for every JClaw skill invocation. Answers \"what's actually being used?\" so we know what to invest in and what's dead weight.
+
+## Log an Invocation
+
+At the start of any skill run, append to `data/skill-telemetry.json`:
+
+```json
+{
+  \"skill\": \"skill-name\",
+  \"triggered_by\": \"heartbeat|cron|jc|overnight-ops|subagent\",
+  \"trigger_phrase\": \"what JC said or cron label\",
+  \"timestamp\": \"ISO 8601\",
+  \"session\": \"main|isolated\",
+  \"outcome\": \"started\"
+}
+```
+
+Update outcome to `\"completed\"` or `\"failed\"` when the skill finishes.
+
+### File structure
+```json
+[
+  { \"skill\": \"gekko\", \"triggered_by\": \"cron\", \"trigger_phrase\": \"daily 6AM\", \"timestamp\": \"2026-04-04T06:00:00Z\", \"session\": \"isolated\", \"outcome\": \"completed\" },
+  ...
+]
+```
+
+Initialize as `[]` if file doesn't exist.
+
+### How to log (one-liner in any skill)
+At skill start, read the file, append the entry, write it back. Keep it under 1000 entries — if >1000, drop the oldest 200.
+
+## Weekly Usage Report
+
+Run during Dream cron (Sunday QMD) or on demand (\"skill usage report\", \"telemetry report\").
+
+Read `data/skill-telemetry.json` and produce:
+
+### Metrics per skill
+- Total invocations (all time)
+- Invocations last 7 days
+- Success rate (completed / total)
+- Most common trigger
+
+### Report format (post to Discord #ops-log, channel 1484269303057350811)
+```
+📊 **JClaw Skill Usage — Week of [DATE]**
+
+🏆 Most Used (7 days)
+1. [skill] — [N] runs · [X]% success
+2. [skill] — [N] runs · [X]% success
+3. [skill] — [N] runs · [X]% success
+
+😴 Unused This Week
+• [skill], [skill] — consider archiving or improving
+
+⚠️ Failure Rate >20%
+• [skill] — [X]% · [N] failures (needs attention)
+
+📈 All-Time Top 3
+1. [skill] — [N] total
+...
+```
+
+## Integration — Add to Every Skill
+
+When creating or updating any skill, add this step at the top of the workflow:
+
+```
+## Step 0 — Log Invocation
+Append to data/skill-telemetry.json: { skill: \"[name]\", triggered_by: \"[source]\", trigger_phrase: \"[what triggered this]\", timestamp: \"[ISO now]\", session: \"[main|isolated]\", outcome: \"started\" }
+Update to \"completed\" or \"failed\" at end.
+```
+
+## Current Skills to Wire
+
+Wire telemetry logging into these skills (add Step 0):
+- gekko, buddy, dream, ea-inbox, find-a-guy, investor-intelligence, investor-psychographic, local-service-sourcing, morning-brief, overnight-ops, paid-traffic, synthesis, write-as-lorraine, five-whys, decisions, telemetry
+
+## Privacy
+- Log skill names and trigger sources only — no message content, no email body, no personal data
+- Telemetry is for internal improvement only
+", "write-as-lorraine": "---
+name: write-as-lorraine
+description: Adopt Lorraine Ge's professional writing voice for team communications, onboarding, and operational matters. Lorraine is Candosa's Chief of Staff—her voice is warm, organized, and genuinely invested in team success. Use this skill when: (1) Drafting team onboarding messages, (2) Writing operational or HR-related communications, (3) Coordinating between teams or departments, (4) You need to balance professionalism with approachability, (5) The message requires clear next steps and team-building warmth. Her tone is 8/10 formality—professional but not stiff, with natural contractions and occasional 🚀 emoji when appropriate.
+---
+
+# Write as Lorraine
+
+Lorraine Ge is Candosa's Chief of Staff. Her written communication is polished, organized, and warm—the voice of someone deeply invested in team success. This skill helps you adopt her voice for professional communications.
+
+## Quick Start
+
+When writing as Lorraine:
+
+1. **Open with warmth:** \"Hi [Name],\" — professional but approachable
+2. **State intent clearly:** Use short, purposeful sentences. Organize complex info with bullet points if needed
+3. **Close with confidence:** \"Best regards, Lorraine Ge\" or \"Best regards, [Your Name/Team]\"
+4. **Match the mood:** Use 🚀 sparingly when celebrating wins or momentum
+
+Example structure for team communication:
+
+```
+Hi [Name],
+
+[Warm opening + clear purpose]
+
+I'll be [action statement]. Once [clear condition], [next step will happen].
+
+Looking forward to [positive outcome].
+
+Best regards,
+[Name]
+```
+
+## Detailed Voice Profile
+
+For a complete breakdown of Lorraine's tone, vocabulary, punctuation style, and specific exemplars, see [lorraine-voice.md](references/lorraine-voice.md).
+
+Key traits to remember:
+
+- **Formality:** 8/10 (professional, not stiff)
+- **Common patterns:** \"I'll be working with...\", \"Once I receive...\", \"Looking forward to...\"
+- **Closing:** Always \"Best regards,\" with full signature
+- **Punctuation:** Em dashes for clarity, minimal exclamation marks, parentheses for secondary info
+- **Emoji:** 🚀 only, and very sparingly
+- **Tone:** Direct, warm, organized, forward-momentum focused
+
+## When to Use This Voice
+
+✅ **Use Lorraine's voice for:**
+- Team onboarding or welcome messages
+- Operational or HR-related communications
+- Multi-team coordination or process updates
+- Messages that need to balance authority with warmth
+- Communications where clarity and next steps are critical
+
+❌ **Don't use for:**
+- Casual Slack banter or quick updates
+- Highly technical engineering discussions
+- Internal-only process notes
+- When the recipient expects informality or brevity
+
+## Writing Tips
+
+1. **Be sequential:** Lorraine presents information in clear order. If there are multiple steps, number or bullet them.
+2. **State next steps explicitly:** \"Once I receive X, I'll do Y\" — no ambiguity.
+3. **Use natural contractions:** \"I'll\", \"we're\", \"I've\" — professional but not robotic.
+4. **Match energy:** If the context is celebratory, you can use 🚀. Otherwise, skip emoji entirely.
+5. **Proofread for warmth:** Read your message aloud. Does it sound like someone who genuinely cares about the outcome?
+
+## Example Communications
+
+### Onboarding Message
+```
+Hi [Name],
+
+Welcome to Candosa — we're very excited to have you joining the team.
+
+I'll be coordinating your onboarding and working with our team to ensure you have everything you need to succeed. To get started, could you please share the following information at your earliest convenience:
+
+- [Detail 1]
+- [Detail 2]
+- [Detail 3]
+
+Once I receive your details, I'll finalize your setup and send over next steps.
+
+Looking forward to working together!
+
+Best regards,
+Lorraine Ge
+Chief of Staff
+```
+
+### Process Update
+```
+Hi [Name],
+
+I wanted to follow up on the action items from our meeting. I'll be coordinating with [teams] to move things forward on our end.
+
+Here's the timeline:
+- [Date]: [Action]
+- [Date]: [Action]
+- [Date]: [Completion]
+
+Let me know if you have any questions or need clarification on anything.
+
+Best regards,
+[Your Name]
+```
+
+---
+
+**Source:** Analyzed from 50+ emails sent by Lorraine Ge in Candosa operations. Voice profile updated 2026-03-17.
+"};
 
 const SKILLS = [
-  { key: "buddy", icon: "🔬", cat: "finance", catLabel: "Finance & Trading", name: "BUDDY — Multi-Agent Stock Analysis", desc: "Deep single-ticker due diligence using the TradingAgents framework. Bull & Bear researchers, Risk Management, Portfolio Manager. Analyst team produces a full investment thesis on any ticker.", triggers: ["run Buddy on [TICKER]", "Buddy report", "deep analysis on [TICKER]"], status: "On-demand", schedule: "" },
-  { key: "dream", icon: "💤", cat: "ops", catLabel: "Operations", name: "Dream — Nightly Cognitive Maintenance", desc: "Runs at 4:30 AM while JC sleeps. Memory consolidation, pattern detection across all sessions, session handoff prep, and proactive preparation for the next day. Sunday: weekly QMD compaction.", triggers: ["dream", "run dream", "nightly synthesis", "Cron: 4:30 AM ET daily"], status: "Daily 4:30AM ET", schedule: "" },
-  { key: "ea-inbox", icon: "📬", cat: "ops", catLabel: "Operations", name: "EA Inbox", desc: "Full executive assistant inbox triage. Classifies emails (escalate/draft/auto), writes replies in JC's voice, schedules meetings end-to-end, and surfaces only what requires JC's attention.", triggers: ["check inbox", "triage emails", "draft reply", "schedule meeting"], status: "Heartbeat + On-demand", schedule: "" },
-  { key: "find-a-guy", icon: "🕵️", cat: "personal", catLabel: "Personal", name: "Find a Guy", desc: "Finds, vets, and optionally contacts the best local provider for any service — restaurant, hotel, trainer, dentist, driver, chef, events. Operates across Miami, Madrid, London, Cleveland.", triggers: ["find me a guy for...", "I need someone who...", "book me a...", "find the best [service] in [city]"], status: "On-demand", schedule: "" },
-  { key: "gekko", icon: "📈", cat: "finance", catLabel: "Finance & Trading", name: "GEKKO — Autonomous Trading Intelligence", desc: "25-agent autonomous trading intelligence system. Macro → Sector → Superinvestor → Decision pipeline. Darwinian weight selection, Soros reflexivity engine, Karpathy autoresearch loop. Daily market brief.", triggers: ["run GEKKO", "GEKKO report", "daily market brief", "what does GEKKO think?"], status: "Daily 6AM ET", schedule: "" },
-  { key: "investor-intelligence", icon: "💼", cat: "intel", catLabel: "Intelligence", name: "Investor Intelligence", desc: "Research and map VC/investor contacts from Gmail history into a scored, ranked Google Sheet. Pulls relationship signals, interaction history, and fund fit. 295 investors, 137 firms mapped.", triggers: ["find investors", "build investor list", "fundraising contacts", "VC sweep"], status: "On-demand + nightly refresh", schedule: "" },
-  { key: "investor-psychographic", icon: "🧠", cat: "intel", catLabel: "Intelligence", name: "Investor Psychographic", desc: "Deep psychographic analysis of any VC partner or investor — how they think, what drives decisions, what they look for in founders. Produces a tactical pitch brief tailored to their psychology.", triggers: ["research [investor]", "psychographic analysis", "prepare me for a meeting with [name]", "how does [investor] think?"], status: "On-demand", schedule: "" },
-  { key: "local-service-sourcing", icon: "📍", cat: "personal", catLabel: "Personal", name: "Local Service Sourcing", desc: "Find, evaluate, and contact local service providers — laundry, cleaning, PA, driver, chef, handyman. Operates across Miami Beach, Madrid, London, Cleveland. Gets quotes and sends outreach.", triggers: ["find a cleaner", "find a driver", "local services in [city]", "get quotes for"], status: "On-demand", schedule: "" },
-  { key: "morning-brief", icon: "☀️", cat: "ops", catLabel: "Operations", name: "Morning Brief", desc: "Daily Discord brief at 8AM ET. Pulls calendar, weather, inbox signals, world-state convergence, and top priorities. Gives JC everything he needs to start the day in one crisp briefing.", triggers: ["morning brief", "what's on today", "Cron: 8AM ET daily"], status: "Daily 8AM ET", schedule: "" },
-  { key: "overnight-ops", icon: "🌙", cat: "ops", catLabel: "Operations", name: "Overnight Ops", desc: "Audits all open loops, broken systems, and improvement opportunities across JClaw. Autonomously fixes everything possible overnight — infra, code, crons, config. Ships solutions before JC wakes up.", triggers: ["run overnight ops", "fix everything", "audit loose ends", "build while I sleep"], status: "On-demand + scheduled", schedule: "" },
-  { key: "paid-traffic", icon: "📣", cat: "finance", catLabel: "Finance & Trading", name: "Paid Traffic — Google Ads Agent", desc: "Candosa Google Ads performance monitoring. Weekly ROAS/CAC report every Monday, daily anomaly detection at 9AM. Posts to #paid-traffic channel. Wired to live Ads API.", triggers: ["paid traffic report", "ROAS update", "ads performance", "check CAC"], status: "Weekly Mon 8AM + Daily 9AM", schedule: "" },
-  { key: "synthesis", icon: "🌍", cat: "intel", catLabel: "Intelligence", name: "Synthesis — World State", desc: "Synthesizes all intel channels into a single world-state JSON: urgent items, convergence signals, fundraise status, threats, opportunities, and the one thing JC should do today. Feeds all other agents.", triggers: ["world state", "synthesize intel", "what's happening", "run synthesis"], status: "Daily 9AM ET", schedule: "" },
-  { key: "write-as-lorraine", icon: "✍️", cat: "comms", catLabel: "Communications", name: "Write as Lorraine", desc: "Adopt Lorraine Ge's (Candosa Chief of Staff) professional writing voice for team comms — warm, organized, invested in team success. Used for onboarding, HR, operational coordination, and inter-team messaging.", triggers: ["write as Lorraine", "team onboarding message", "Lorraine voice"], status: "On-demand", schedule: "" },
+  { key: "buddy", icon: "🔬", cat: "finance", catLabel: "Finance & Trading", name: "BUDDY — Multi-Agent Stock Analysis", desc: "Deep single-ticker due diligence using the TradingAgents framework. Bull & Bear researchers, Risk Management, Portfolio Manager. Analyst team produces a full investment thesis on any ticker.", triggers: ["run Buddy on [TICKER]", "Buddy report", "deep analysis on [TICKER]"], status: "On-demand" },
+  { key: "decisions", icon: "📋", cat: "ops", catLabel: "Operations", name: "Decisions — Structured Decision Log", desc: "Log and query every significant decision made across JClaw and JC's business. Answers 'why did we do it this way?' instantly. Fed by Five Whys post-mortems. Tracks policy, architecture, business, and preference decisions.", triggers: ["log this decision", "what's our policy on [X]", "what did we decide about [Y]", "decision log"], status: "On-demand + Dream review" },
+  { key: "dream", icon: "💤", cat: "ops", catLabel: "Operations", name: "Dream — Nightly Cognitive Maintenance", desc: "Runs at 4:30 AM while JC sleeps. Memory consolidation, pattern detection across all sessions, session handoff prep, and proactive preparation for the next day. Sunday: weekly QMD compaction.", triggers: ["dream", "run dream", "nightly synthesis", "Cron: 4:30 AM ET daily"], status: "Daily 4:30AM ET" },
+  { key: "ea-inbox", icon: "📬", cat: "ops", catLabel: "Operations", name: "EA Inbox", desc: "Full executive assistant inbox triage. Classifies emails (escalate/draft/auto), writes replies in JC's voice, schedules meetings end-to-end. Hard approval gate — any edit resets the gate, requires fresh approval before sending.", triggers: ["check inbox", "triage emails", "draft reply", "schedule meeting"], status: "Heartbeat + On-demand" },
+  { key: "find-a-guy", icon: "🕵️", cat: "personal", catLabel: "Personal", name: "Find a Guy", desc: "Finds, vets, and optionally contacts the best local provider for any service — restaurant, hotel, trainer, dentist, driver, chef, events. Operates across Miami, Madrid, London, Cleveland.", triggers: ["find me a guy for...", "I need someone who...", "book me a...", "find the best [service] in [city]"], status: "On-demand" },
+  { key: "five-whys", icon: "🔍", cat: "ops", catLabel: "Operations", name: "Five Whys — Root Cause Analysis", desc: "Structured post-mortem using Toyota's Five Whys. Ask why 5 times to find real root cause instead of patching symptoms. Called automatically by Overnight Ops for repeated failures. Logs results to the decision log.", triggers: ["five whys", "root cause", "why did X fail", "post-mortem", "why does this keep happening"], status: "On-demand + Overnight Ops" },
+  { key: "gekko", icon: "📈", cat: "finance", catLabel: "Finance & Trading", name: "GEKKO — Autonomous Trading Intelligence", desc: "25-agent autonomous trading intelligence system. Macro → Sector → Superinvestor → Decision pipeline. Darwinian weight selection, Soros reflexivity engine, Karpathy autoresearch loop. Daily market brief.", triggers: ["run GEKKO", "GEKKO report", "daily market brief", "what does GEKKO think?"], status: "Daily 6AM ET" },
+  { key: "investor-intelligence", icon: "💼", cat: "intel", catLabel: "Intelligence", name: "Investor Intelligence", desc: "Research and map VC/investor contacts from Gmail history into a scored, ranked Google Sheet. Pulls relationship signals, interaction history, and fund fit. 295 investors, 137 firms mapped.", triggers: ["find investors", "build investor list", "fundraising contacts", "VC sweep"], status: "On-demand + nightly refresh" },
+  { key: "investor-psychographic", icon: "🧠", cat: "intel", catLabel: "Intelligence", name: "Investor Psychographic", desc: "Deep psychographic analysis of any VC partner or investor — how they think, what drives decisions, what they look for in founders. Produces a tactical pitch brief tailored to their psychology.", triggers: ["research [investor]", "psychographic analysis", "prepare me for a meeting with [name]", "how does [investor] think?"], status: "On-demand" },
+  { key: "local-service-sourcing", icon: "📍", cat: "personal", catLabel: "Personal", name: "Local Service Sourcing", desc: "Find, evaluate, and contact local service providers — laundry, cleaning, PA, driver, chef, handyman. Operates across Miami Beach, Madrid, London, Cleveland. Gets quotes and sends outreach.", triggers: ["find a cleaner", "find a driver", "local services in [city]", "get quotes for"], status: "On-demand" },
+  { key: "morning-brief", icon: "☀️", cat: "ops", catLabel: "Operations", name: "Morning Brief", desc: "Daily Discord brief at 8AM ET. Pulls calendar, weather, inbox signals, world-state convergence, and top priorities. Gives JC everything he needs to start the day in one crisp briefing.", triggers: ["morning brief", "what's on today", "Cron: 8AM ET daily"], status: "Daily 8AM ET" },
+  { key: "overnight-ops", icon: "🌙", cat: "ops", catLabel: "Operations", name: "Overnight Ops", desc: "Audits all open loops, broken systems, and improvement opportunities across JClaw. Autonomously fixes everything possible overnight. Now integrated with Five Whys for repeated failures.", triggers: ["run overnight ops", "fix everything", "audit loose ends", "build while I sleep"], status: "On-demand + scheduled" },
+  { key: "paid-traffic", icon: "📣", cat: "finance", catLabel: "Finance & Trading", name: "Paid Traffic — Google Ads Agent", desc: "Candosa Google Ads performance monitoring. Weekly ROAS/CAC report every Monday, daily anomaly detection at 9AM. Posts to #paid-traffic channel. Wired to live Ads API.", triggers: ["paid traffic report", "ROAS update", "ads performance", "check CAC"], status: "Weekly Mon 8AM + Daily 9AM" },
+  { key: "synthesis", icon: "🌍", cat: "intel", catLabel: "Intelligence", name: "Synthesis — World State", desc: "Synthesizes all intel channels into a single world-state JSON: urgent items, convergence signals, fundraise status, threats, opportunities, and the one thing JC should do today. Feeds all other agents.", triggers: ["world state", "synthesize intel", "what's happening", "run synthesis"], status: "Daily 9AM ET" },
+  { key: "telemetry", icon: "📊", cat: "ops", catLabel: "Operations", name: "Skill Telemetry", desc: "Silent logging layer that tracks every JClaw skill invocation — which skill, when, triggered by what, success or failure. Weekly usage reports show what's being used, what's dead weight, and what needs fixing.", triggers: ["skill usage report", "what skills am I using", "telemetry report"], status: "Always-on + weekly report" },
+  { key: "write-as-lorraine", icon: "✍️", cat: "comms", catLabel: "Communications", name: "Write as Lorraine", desc: "Adopt Lorraine Ge's (Candosa Chief of Staff) professional writing voice for team comms — warm, organized, invested in team success. Used for onboarding, HR, operational coordination, and inter-team messaging.", triggers: ["write as Lorraine", "team onboarding message", "Lorraine voice"], status: "On-demand" },
 ];
 
 const catColors = {
