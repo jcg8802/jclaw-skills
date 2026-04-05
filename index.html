@@ -129,7 +129,7 @@
 <div class="container">
 
   <div class="stats-row">
-    <div class="stat-card"><div class="num">15</div><div class="lbl">Active Skills</div></div>
+    <div class="stat-card"><div class="num">16</div><div class="lbl">Active Skills</div></div>
     <div class="stat-card"><div class="num">5</div><div class="lbl">Categories</div></div>
     <div class="stat-card"><div class="num">24/7</div><div class="lbl">Autonomous Ops</div></div>
     <div class="stat-card"><div class="num">∞</div><div class="lbl">Compounding</div></div>
@@ -162,7 +162,242 @@
 </footer>
 
 <script>
-const SKILL_CONTENT = {"buddy": "# SKILL: BUDDY — Multi-Agent LLM Financial Analysis
+const SKILL_CONTENT = {"autoagent": "---
+name: autoagent
+description: Self-improving skill optimizer. Runs nightly — a meta-agent tests JClaw skills against benchmarks, rewrites underperforming skill prompts, scores the result, keeps improvements and discards regressions. Darwinian selection applied to JClaw's own skill prompts. Triggers on \"run autoagent\", \"self-improve\", \"optimize skills overnight\", \"skill evolution\". Also runs via nightly cron at 2 AM ET.
+---
+
+# AutoAgent — JClaw Self-Improving Skill System
+
+Inspired by kevinrgu/autoagent. The core idea: don't touch the skills manually — let a meta-agent hill-climb on them overnight, guided by real task scores.
+
+**What it does:**
+- Selects 2-3 underperforming or untested skills from telemetry
+- Runs each against a benchmark task set (tasks defined in `tasks/`)
+- Scores performance (0.0–1.0) using verifier logic
+- Has meta-agent propose ONE targeted prompt change
+- Re-runs benchmark with modified skill
+- Keeps change if score improves, reverts if not
+- Logs every experiment to `results/experiment-log.json`
+- Posts nightly report to Discord
+
+**Philosophy:** Program the meta-agent via `program.md`, not the skills directly. The meta-agent edits skills. You edit `program.md`.
+
+---
+
+## program.md — Meta-Agent Directive
+
+See `program.md` in this directory. That file defines:
+- Which skills to target
+- What \"good\" looks like for each
+- Constraints the meta-agent must respect
+- How to score outputs
+
+Edit `program.md` to steer the evolution. Don't edit skills directly during an autoagent run.
+
+---
+
+## Benchmark Architecture
+
+```
+skills/autoagent/
+├── SKILL.md              ← this file
+├── program.md            ← meta-agent directive (human edits this)
+├── tasks/
+│   ├── ea-inbox/         ← benchmark tasks for EA Inbox skill
+│   │   ├── task.md       ← task prompt + expected behavior
+│   │   └── verifier.md   ← how to score the output (0.0–1.0)
+│   ├── synthesis/        ← benchmark tasks for Synthesis skill
+│   ├── find-a-guy/       ← benchmark tasks for Find a Guy skill
+│   └── [skill-name]/     ← add new task folders as needed
+├── results/
+│   ├── experiment-log.json  ← full experiment history
+│   └── skill-snapshots/     ← point-in-time backups of skill versions
+└── program.md
+```
+
+---
+
+## Execution Flow
+
+The meta-agent runs this loop (spawn as isolated subagent):
+
+### Step 1 — Select Target Skills
+Read `data/skill-telemetry.json`. Rank skills by:
+- Failure rate (highest first) — skills that are breaking
+- Days since last improvement — skills that haven't evolved
+- \"Never tested\" flag — skills with 0 benchmark runs
+
+Select top 2-3 targets for tonight's run.
+
+### Step 2 — Establish Baseline
+For each target skill:
+1. Read current `SKILL.md`
+2. Save snapshot to `results/skill-snapshots/[skill]-[timestamp].md`
+3. Run benchmark tasks in `tasks/[skill]/` against current skill text
+4. Score output using verifier instructions
+5. Record baseline score in `results/experiment-log.json`
+
+### Step 3 — Meta-Agent Proposes Change
+Feed the meta-agent:
+- The current skill SKILL.md
+- The task description and verifier criteria
+- The baseline score
+- Last 3 experiment results for this skill (if any)
+- The `program.md` directive
+
+Meta-agent produces ONE targeted change. Constraints:
+- Change only ONE thing per iteration
+- Must improve score, not add complexity
+- Simpler wins if score is equal
+- Cannot change: skill name, trigger phrases, fundamental purpose
+- CAN change: step order, output format, guardrail wording, process details, examples
+
+### Step 4 — Apply and Score
+1. Write modified SKILL.md
+2. Re-run benchmark against modified version
+3. Score again using same verifier
+
+### Step 5 — Keep or Revert
+- If new score > baseline: keep change, log as \"accepted\"
+- If new score ≤ baseline: revert to snapshot, log as \"rejected\"
+- Log reasoning either way
+
+### Step 6 — Repeat
+Run 3-5 iterations per skill (time permitting). Each iteration builds on the last accepted change.
+
+### Step 7 — Report
+Post to Discord #general (channel 1483310564213129300):
+
+```
+🧬 **AutoAgent Nightly Report** · [DATE]
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+
+**Skills Evolved Tonight**
+📬 ea-inbox: 0.62 → 0.81 (+0.19) ✅ 3 changes accepted
+🌍 synthesis: 0.74 → 0.74 (no change) — 2 changes rejected
+🕵️ find-a-guy: 0.55 → 0.68 (+0.13) ✅ 1 change accepted
+
+**What Changed**
+• ea-inbox: Reordered classification table (SCHEDULE first — most common case)
+• ea-inbox: Added explicit \"ignore if older than 7 days\" rule to Step 1
+• ea-inbox: Strengthened approval gate wording (reset language now matches decisions.json policy)
+• find-a-guy: Added step to check Yelp directly when web_search returns <3 results
+
+**What Didn't Work**
+• synthesis: Tried moving convergence detection before signal pull — reduced coherence
+
+**Rejected Experiments (reverted)**
+• synthesis: Step reorder — score dropped 0.74 → 0.61
+
+📊 Cumulative improvement since autoagent started: [N] changes accepted across [M] skills
+━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```
+
+---
+
+## Scoring System
+
+Each task in `tasks/[skill]/` has a `verifier.md` with:
+- **Expected behaviors** (checklist)
+- **Scoring rubric** (how many points each behavior is worth)
+- **Score = items correct / total items** (0.0–1.0)
+
+The meta-agent acts as verifier: it reads the skill output and scores it against the rubric. No external benchmark runner needed — pure LLM-as-judge, guided by explicit rubric.
+
+**Scoring principles:**
+- Binary where possible (did it do X? yes/no)
+- Weighted for critical behaviors (missing approval gate = -0.4, not just -0.1)
+- Reproducible — same output should always produce same score
+
+---
+
+## Experiment Log Format
+
+`results/experiment-log.json`:
+
+```json
+[
+  {
+    \"id\": \"auto-increment\",
+    \"date\": \"2026-04-05\",
+    \"skill\": \"ea-inbox\",
+    \"iteration\": 1,
+    \"baseline_score\": 0.62,
+    \"proposed_change\": \"Reordered classification table — SCHEDULE first\",
+    \"new_score\": 0.74,
+    \"delta\": 0.12,
+    \"decision\": \"accepted\",
+    \"reasoning\": \"More common case first reduces misclassification of scheduling emails\",
+    \"snapshot_path\": \"results/skill-snapshots/ea-inbox-2026-04-05T02:00:00.md\"
+  }
+]
+```
+
+---
+
+## Adding New Tasks
+
+Create `tasks/[skill-name]/task.md`:
+
+```markdown
+# Task: [Skill Name] — [Task Title]
+
+## Input
+[What you give the skill — a mock email, a request, a trigger phrase]
+
+## Expected Output
+[What good output looks like — concrete, not vague]
+
+## Critical Behaviors
+- [ ] [Behavior 1 — worth 0.2 points]
+- [ ] [Behavior 2 — worth 0.2 points]
+- [ ] [Behavior 3 — worth 0.2 points]
+- [ ] [Behavior 4 — worth 0.2 points]
+- [ ] [Behavior 5 — worth 0.2 points]
+
+## Anti-Patterns (auto-fail if present)
+- Sends email without approval gate
+- Hallucinates information not in input
+- Posts to Discord when inbox is clear
+```
+
+---
+
+## Guardrails
+
+- **Never modify a skill that's actively running** — check `data/skill-telemetry.json` for recent invocations before editing
+- **Always snapshot before modifying** — every change is reversible
+- **One change at a time** — compounding multiple changes makes it impossible to know what worked
+- **Don't touch `SOUL.md`, `AGENTS.md`, `MEMORY.md`** — those are identity, not skills
+- **Don't touch Gekko's `darwinian_weights.json`** — Gekko manages its own evolution
+- **Report even when nothing improves** — a null result is still information
+
+---
+
+## Cron Schedule
+
+Run nightly at 2:00 AM ET (after Dream at 4:30 AM would be too late, before is fine).
+
+Add cron:
+```
+schedule: { kind: \"cron\", expr: \"0 2 * * *\", tz: \"America/New_York\" }
+payload: { kind: \"agentTurn\", message: \"Run autoagent skill evolution cycle. Read SKILL.md at ~/.openclaw/workspace/skills/autoagent/SKILL.md and program.md. Select 2-3 target skills, run benchmark tasks, propose and test improvements, keep wins, revert losses, post nightly report to Discord channel 1483310564213129300.\", timeoutSeconds: 1800 }
+sessionTarget: isolated
+```
+
+---
+
+## Relationship to Other Systems
+
+| System | What it does | Overlap |
+|--------|-------------|---------|
+| **Telemetry** | Tracks invocations + failures | Feeds target selection |
+| **Five Whys** | Root cause on repeated failures | AutoAgent uses this for \"why did this score drop?\" |
+| **Decisions** | Logs permanent choices | Every accepted change logs to decisions.json |
+| **Dream** | Nightly memory + handoff | AutoAgent posts before Dream runs; Dream notes skill versions |
+| **GEKKO** | Self-evolving trading agents | Same Darwinian principle, different domain |
+", "buddy": "# SKILL: BUDDY — Multi-Agent LLM Financial Analysis
 
 > *\"From fundamental analysts, sentiment experts, and technical analysts — to trader, risk management, and portfolio manager.\"*
 
@@ -2275,6 +2510,7 @@ Best regards,
 "};
 
 const SKILLS = [
+  { key: "autoagent", icon: "🧬", cat: "ops", catLabel: "Operations", name: "AutoAgent — Self-Improving Skill Optimizer", desc: "Nightly meta-agent that benchmarks JClaw skills against real task verifiers, proposes targeted prompt improvements, scores the result, and keeps wins while reverting regressions. Darwinian selection applied to skill prompts. Skills get smarter every night.", triggers: ["run autoagent", "self-improve", "optimize skills overnight", "Cron: 2AM ET nightly"], status: "Daily 2AM ET" },
   { key: "buddy", icon: "🔬", cat: "finance", catLabel: "Finance & Trading", name: "BUDDY — Multi-Agent Stock Analysis", desc: "Deep single-ticker due diligence using the TradingAgents framework. Bull & Bear researchers, Risk Management, Portfolio Manager. Analyst team produces a full investment thesis on any ticker.", triggers: ["run Buddy on [TICKER]", "Buddy report", "deep analysis on [TICKER]"], status: "On-demand" },
   { key: "decisions", icon: "📋", cat: "ops", catLabel: "Operations", name: "Decisions — Structured Decision Log", desc: "Log and query every significant decision made across JClaw and JC's business. Answers 'why did we do it this way?' instantly. Fed by Five Whys post-mortems. Tracks policy, architecture, business, and preference decisions.", triggers: ["log this decision", "what's our policy on [X]", "what did we decide about [Y]", "decision log"], status: "On-demand + Dream review" },
   { key: "dream", icon: "💤", cat: "ops", catLabel: "Operations", name: "Dream — Nightly Cognitive Maintenance", desc: "Runs at 4:30 AM while JC sleeps. Memory consolidation, pattern detection across all sessions, session handoff prep, and proactive preparation for the next day. Sunday: weekly QMD compaction.", triggers: ["dream", "run dream", "nightly synthesis", "Cron: 4:30 AM ET daily"], status: "Daily 4:30AM ET" },
