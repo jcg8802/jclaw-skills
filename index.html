@@ -908,6 +908,8 @@ Use `newer_than:1h` (not `is:unread`) to catch emails marked as read by other cl
 
 Load `data/ea-inbox/processed-emails.json`. Skip any message ID already in the list. After processing each email, append its ID with a timestamp.
 
+**Stale email rule:** If any fetched email has a date older than **7 days**, skip it entirely — do NOT draft, escalate, or post. Mark it in processed-emails.json as `\"skipped\": \"stale\"`. No exceptions.
+
 **jclaw@candosa.com** — JClaw's own inbox: apply the \"FROM JC only\" rule (directives from JC trigger actions)
 **jc@candosa.com** — JC's main inbox: triage ALL inbound emails using the classification table below (ESCALATE / DRAFT / AUTO)
 
@@ -1073,6 +1075,8 @@ Always escalate (never auto-handle):
 - First-time contacts JC has never emailed
 - Anything involving Candosa fundraising or M&A
 - When in doubt — escalate
+
+**SCHEDULE overrides ESCALATE for scheduling replies.** If a VIP or fund contact sends a direct availability response (proposing times, confirming availability) → classify as SCHEDULE, not ESCALATE. The meeting is already approved by JC having initiated contact. Only escalate VIP emails that are *substantive messages*, not scheduling logistics.
 ", "find-a-guy": "---
 name: find-a-guy
 description: Find the best local service provider for any need — restaurant, laundry, dentist, hotel, trainer, events, anything. Inspired by Barney Stinson's \"I have a guy for everything.\" Use when JC needs to find, vet, or book any service. Triggers on phrases like \"find me a guy for\", \"find someone who\", \"I need someone to\", \"book me\", \"find me a\", or any request for a service provider in a specific city.
@@ -1087,6 +1091,22 @@ JC needs a guy for everything. This skill finds, vets, and optionally contacts t
 - **Preference:** Premium and reliable over cheapest
 - **Style:** Curated, specific, not generic lists
 
+## Location Adaptation
+
+When the city is **not Miami Beach**, adapt:
+
+| City | Zip/Postal | Currency | Contact Format | Neighborhood Context |
+|------|------------|----------|----------------|----------------------|
+| Miami Beach | 33139, 33140, 33141 | USD | +1 (305/786) | South Beach, Mid-Beach, North Beach |
+| London | SW1/W1/WC2 | GBP (£) | +44 20 XXXX XXXX | Mayfair, Chelsea, Kensington, Notting Hill |
+| Madrid | 28001–28010 | EUR (€) | +34 91 XXX XXXX | Salamanca, Retiro, Chamberí |
+
+- Always present pricing in the **local currency** of the city
+- Format phone numbers in the local standard (UK: +44, Spain: +34)
+- Use neighborhood-specific search terms, not just city name
+- For London: prefer Tatler-recommended, Harpers, or concierge-grade services
+- For Miami Beach: always include zip codes **33139, 33140, 33141** in search queries
+
 ## Workflow
 
 ### 1. Identify the need
@@ -1098,6 +1118,12 @@ Use `web_search` with targeted queries:
 - `\"[service] Miami Beach luxury concierge\"`
 - `\"[service] near Miami Beach reviews\"`
 - Check Yelp, Google, and service-specific platforms (OpenTable for restaurants, ZocDoc for doctors, etc.)
+
+**Sparse results rule:** If the first query returns fewer than 3 named businesses, immediately run 2 additional queries AND fetch Yelp directly:
+```
+web_fetch: https://www.yelp.com/search?find_desc=[service]&find_loc=[city]
+```
+Do NOT present a list with fewer than 3 options without first attempting Yelp + Thumbtack direct fetch.
 
 ### 3. Vet the top 3
 For each candidate find:
@@ -1672,6 +1698,221 @@ Post to channel **1486200925277393027**:
 - Run daily via cron at 06:00 ET (before market open)
 - Data providers to integrate: FMP, Finnhub, Polygon, FRED (or use web_search as free substitute)
 - Cost per full run with Claude Sonnet: ~$0.50–$2.00 depending on data volume
+", "granola": "# Granola Meeting Intelligence Skill
+
+## Overview
+
+This skill gives JClaw access to JC's full meeting history via Granola's local cache — 500+ meetings covering investor calls, team standups, external partnerships, and board interactions. No API dependency for basic use; the local cache is the source of truth.
+
+**Trigger this skill when JC:**
+- Asks about a past meeting (\"what did we discuss with Sergio?\")
+- Wants to prep for an upcoming meeting
+- Asks what was discussed with a person or company
+- Requests action items or open loops from recent meetings
+- Asks about investor meeting history
+- Mentions \"meeting notes\", \"Granola\", \"what did we decide\"
+
+---
+
+## File Locations
+
+```
+skills/granola/
+├── SKILL.md                    ← this file
+└── scripts/
+    ├── query.py                ← search & browse meetings
+    ├── prep.py                 ← meeting prep brief
+    └── sync.py                 ← sync to local workspace files
+```
+
+Cache: `~/Library/Application Support/Granola/cache-v6.json`  
+Sync output: `~/.openclaw/workspace/data/granola-sync/`
+
+---
+
+## Quick Commands
+
+```bash
+# Search by keyword (title, notes, attendees)
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --search \"K Fund\"
+
+# All meetings with a person
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --person \"Sergio\"
+
+# Last 10 meetings
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --recent 10
+
+# Today's meetings
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --today
+
+# Full notes for a specific meeting ID
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --id <meeting_id>
+
+# Investor/VC meetings only
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --investors
+
+# Action items from last 20 meetings
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --action-items --recent 20
+
+# Meeting prep brief (last 5 meetings with a person)
+python3 ~/.openclaw/workspace/skills/granola/scripts/prep.py --person \"Sergio\" --context 5
+
+# Sync meetings to local files (cache-based, no API needed)
+python3 ~/.openclaw/workspace/skills/granola/scripts/sync.py --limit 50
+```
+
+---
+
+## JC-Specific Use Cases
+
+### 1. 💼 Investor Meeting Prep
+Before any investor call, run prep.py to surface history, commitments, and open loops:
+
+```bash
+# K Fund (Sergio / Miguel)
+python3 ~/.openclaw/workspace/skills/granola/scripts/prep.py --person \"Sergio\"
+python3 ~/.openclaw/workspace/skills/granola/scripts/prep.py --person \"Miguel\"
+
+# General Atlantic
+python3 ~/.openclaw/workspace/skills/granola/scripts/prep.py --person \"general atlantic\"
+
+# a16z (James da Costa)
+python3 ~/.openclaw/workspace/skills/granola/scripts/prep.py --person \"James da Costa\"
+
+# ISAI (Pierre)
+python3 ~/.openclaw/workspace/skills/granola/scripts/prep.py --person \"Pierre\"
+```
+
+The brief includes:
+- Last N meeting titles + dates
+- Key topics discussed
+- Action items and commitments made
+- Decisions logged
+- Open loops (action items >7 days old with no resolution)
+
+### 2. 🌅 Morning Brief Integration
+Pull today's meetings for context at the start of each day:
+
+```bash
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --today
+```
+
+The morning-brief skill should call this and prepend to the daily report.
+
+### 3. ✅ Action Item Sweep
+Find open loops across recent meetings:
+
+```bash
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --action-items --recent 20
+```
+
+Run this weekly or whenever JC asks \"what's hanging?\"
+
+### 4. 🔍 Due Diligence / Company Research
+Pull all notes about a specific company or deal:
+
+```bash
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --search \"Footwork\"
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --search \"General Atlantic\"
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --search \"Kleiner\"
+```
+
+### 5. 📊 Investor Meeting History
+See all VC/investor meetings at a glance:
+
+```bash
+python3 ~/.openclaw/workspace/skills/granola/scripts/query.py --investors
+```
+
+Flagged keywords: K Fund, General Atlantic, a16z, ISAI, Kleiner, Sequoia, Benchmark, Lightspeed, Accel, Index Ventures, Balderton, Northzone, and more.
+
+---
+
+## Output Format
+
+**query.py** outputs clean Markdown:
+```
+## Meeting Title [💼 INVESTOR]
+**Date:** 2026-03-15 14:00
+**Participants:** Sergio Perez, Miguel Torres
+**Summary:** ...
+
+[notes preview or full notes]
+```
+
+**prep.py** outputs a structured brief:
+```
+# 📋 Meeting Prep Brief: Sergio
+## 📅 Meeting History
+### 1. Meeting title (2026-03-15)
+   Key topics: ...
+
+## ✅ Action Items / Commitments
+- [2026-03-15] JC will send deck by end of week
+
+## 🔑 Key Decisions
+- [2026-03-01] Agreed on term sheet timeline
+
+## 🔄 Open Loops (Possible)
+- [2026-02-20] Follow up on data room access
+  *(from: K Fund Due Diligence Call)*
+```
+
+---
+
+## Data Structure Reference
+
+The cache lives at `~/Library/Application Support/Granola/cache-v6.json` with path:
+`cache.state.documents` → dict of `{id: document}`
+
+Each document has:
+- `id`, `title`, `created_at`, `updated_at`
+- `notes_markdown` / `notes_plain` — AI-generated notes
+- `summary`, `overview` — short summaries (often null on recent docs)
+- `chapters` — structured note sections
+- `people.creator` — meeting organizer
+- `people.attendees[]` — list of attendees with `email`, `name`, `details.person.name.fullName`
+- `google_calendar_event.start.dateTime` — meeting start time (ISO format)
+
+---
+
+## Integration Notes
+
+### morning-brief skill
+Call `query.py --today` and prepend results to the morning brief. If no meetings today, skip.
+
+### ea-inbox skill
+Before drafting a follow-up email to someone, call `query.py --person \"[name]\"` for context on what was last discussed.
+
+### investor-psychographic skill
+Call `query.py --investors` and `prep.py --person \"[investor name]\"` to enrich the psychographic report with real meeting history.
+
+### overnight-ops skill
+Include `query.py --action-items --recent 30` in overnight sweeps to surface lingering open loops.
+
+---
+
+## Known Limitations
+
+- **Granola API endpoint unknown** — sync.py will attempt common paths but may not succeed. Local cache is always available.
+- **Summaries are sparse** — Granola generates AI summaries asynchronously; many meetings only have raw notes.
+- **Action item extraction is heuristic** — looks for keywords like \"will\", \"should\", \"next steps\", \"follow up\". May miss implicit commitments.
+- **People matching is fuzzy** — uses partial name/email match. If results are empty, try last name only.
+
+---
+
+## VIP Contacts Reference
+
+| Name | Org | Query |
+|------|-----|-------|
+| Sergio | K Fund | `--person \"sergio\"` |
+| Miguel | K Fund | `--person \"miguel\"` |
+| James da Costa | a16z | `--person \"james\"` |
+| Pierre | ISAI | `--person \"pierre\"` |
+| General Atlantic | GA | `--search \"general atlantic\"` |
+| Ilya Fushman | Kleiner Perkins | `--person \"ilya\"` |
+
+Team members (Aina, Dakis, Anton, Olivier, Lorraine, Alejandro, Nikolas, Rafael, Ruben, Diagoras) are auto-excluded from investor filtering.
 ", "investor-intelligence": "---
 name: investor-intelligence
 description: Research and map VC/investor contacts from Gmail history into a scored, ranked Google Sheet. Use when JC asks to find investors, build an investor list, run a fundraising contact sweep, identify VCs in his network, or prepare for a capital raise. Also use to update or refresh the existing VC intelligence sheet.
@@ -1763,6 +2004,8 @@ Run parallel web searches to gather:
 
 **Minimum bar:** 2+ long-form interviews fully read, complete portfolio list, at least 1 recent source, direct quotes on founder selection criteria, and personal backstory.
 
+**If minimum bar cannot be met** (fewer than 2 long-form interviews available after exhaustive Phase 1–4 search): Begin the profile with — \"⚠️ Research standard not met — only [N] long-form source(s) available. Profile reliability: reduced. Sections marked [THIN DATA] reflect limited sourcing.\" Then produce the best-effort profile anyway, marking each under-sourced dimension as [THIN DATA] rather than speculating. Do NOT refuse to deliver the profile.
+
 ### 2. Analyze
 
 Extract psychographic dimensions from the research:
@@ -1789,6 +2032,7 @@ Key principles:
 - **Use direct quotes liberally.** Their own words reveal more than paraphrasing.
 - **Be opinionated in the \"How to Pitch\" section.** Concrete, tactical advice — not generic \"show traction.\"
 - **Flag gaps honestly.** If data is thin on a dimension, say so rather than speculating.
+- **For non-US investors:** In the \"How to Pitch\" section, adapt framing to their regional context — explicitly connect JC's business (Candosa/Spanish accounting market, EU distribution, EUR SaaS) to the investor's geographic thesis. Don't use a US-centric pitch frame for European, LATAM, or APAC investors.
 - **Platform formatting:** On Discord/WhatsApp, use bullet lists not markdown tables. Wrap links in `<>` on Discord.
 
 ### 4. Deliver
@@ -2217,6 +2461,16 @@ If a theme converges → flag as CONVERGENCE SIGNAL. This is the highest-priorit
 2. Candosa growth (ROAS, CAC, revenue, marketing performance)
 3. M&A pipeline (European SMB acquisitions)
 
+**If no direct signal maps to a core goal, use the indirect connection formula:**
+> \"[Signal X] → [implication for JC's business context] → [action tied to fundraise / Candosa growth / M&A]\"
+
+Examples:
+- \"Risk-off macro regime → protect Candosa runway → delay discretionary capex until regime clears\"
+- \"EU regulatory pressure → compliance advantage for Candosa → accelerate EU positioning in GA pitch\"
+- \"Competitor expansion → narrowing window → accelerate M&A pipeline in their footprint\"
+
+The One Thing must always end in a concrete action JC can take. Generic market observations are not valid.
+
 **Flag 🔴 URGENT if any signal involves:**
 - Action required today (call in a few hours, deadline today, stop-loss imminent)
 - Time window closing within 48h
@@ -2510,6 +2764,7 @@ Best regards,
 "};
 
 const SKILLS = [
+  { key: "granola", icon: "🎤", cat: "intel", catLabel: "Intelligence", name: "Granola — Meeting Intelligence", desc: "Full access to JC's 500+ meeting history via Granola's local cache. Search by person, topic, or date. Generate meeting prep briefs with open loops, action items, and key decisions. Tag and filter investor meetings. Works offline from local cache.", triggers: ["what did we discuss with", "meeting notes", "prep for my meeting", "action items", "investor meeting history", "Granola", "what was decided"], status: "Live" },
   { key: "autoagent", icon: "🧬", cat: "ops", catLabel: "Operations", name: "AutoAgent — Self-Improving Skill Optimizer", desc: "Nightly meta-agent that benchmarks JClaw skills against real task verifiers, proposes targeted prompt improvements, scores the result, and keeps wins while reverting regressions. Darwinian selection applied to skill prompts. Skills get smarter every night.", triggers: ["run autoagent", "self-improve", "optimize skills overnight", "Cron: 2AM ET nightly"], status: "Daily 2AM ET" },
   { key: "buddy", icon: "🔬", cat: "finance", catLabel: "Finance & Trading", name: "BUDDY — Multi-Agent Stock Analysis", desc: "Deep single-ticker due diligence using the TradingAgents framework. Bull & Bear researchers, Risk Management, Portfolio Manager. Analyst team produces a full investment thesis on any ticker.", triggers: ["run Buddy on [TICKER]", "Buddy report", "deep analysis on [TICKER]"], status: "On-demand" },
   { key: "decisions", icon: "📋", cat: "ops", catLabel: "Operations", name: "Decisions — Structured Decision Log", desc: "Log and query every significant decision made across JClaw and JC's business. Answers 'why did we do it this way?' instantly. Fed by Five Whys post-mortems. Tracks policy, architecture, business, and preference decisions.", triggers: ["log this decision", "what's our policy on [X]", "what did we decide about [Y]", "decision log"], status: "On-demand + Dream review" },
